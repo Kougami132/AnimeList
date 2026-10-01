@@ -9,6 +9,8 @@ import { prepareScoreDashboardCoverSources } from "../../ui/score-dashboard/cove
 import { confirmScoreDashboardClamp } from "../../ui/score-dashboard/operation-ui";
 import type { ScoreDashboardUiState } from "../../ui/score-dashboard/renderer";
 import { SCORE_DASHBOARD_VIEW_TYPE, ScoreDashboardView, type ScoreDashboardPluginHost } from "../../ui/score-dashboard/view";
+import { normalizeLibraryFilters } from "../../domain/library-filters";
+import { LibraryFilterModal } from "../../ui/library-filter-modal";
 import { scoreDashboardText as text } from "./text";
 
 interface ScoreDashboardDomEventRegistrar {
@@ -50,6 +52,9 @@ function createHost(
     },
     confirmScoreClamp: (summary) => confirmScoreDashboardClamp(plugin.app, summary),
     showNotice: (message) => { new Notice(message); },
+    openFilterModal: (filters, options, onApply) => {
+      new LibraryFilterModal(plugin.app, filters, options, onApply).open();
+    },
   };
 }
 
@@ -125,6 +130,7 @@ function renderWorkspaceScoreDashboard(plugin: ScoreDashboardPlugin, container: 
     type: "all",
     scale: SCORE_DASHBOARD_DEFAULT_SCALE,
     showUnrated: false,
+    filters: normalizeLibraryFilters({}),
   };
   container.addClass("animelist-score-dashboard-view");
   renderScoreDashboardWithBatchDrag(container, dashboardHost.collectMediaItems(), state, {
@@ -132,6 +138,13 @@ function renderWorkspaceScoreDashboard(plugin: ScoreDashboardPlugin, container: 
     applyChanges: (changes) => dashboardHost.applyScoreChanges(changes),
     confirmClamp: (summary) => dashboardHost.confirmScoreClamp(summary),
     showNotice: (message) => dashboardHost.showNotice(message),
+    openFilterModal: (filters, options, onApply) => {
+      if (dashboardHost.openFilterModal) {
+        dashboardHost.openFilterModal(filters, options, onApply);
+      } else {
+        new LibraryFilterModal(plugin.app, filters, options, onApply).open();
+      }
+    },
     onStateChange: (nextState) => STATES.set(plugin, { ...nextState }),
   });
 }

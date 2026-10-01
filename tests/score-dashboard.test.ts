@@ -12,15 +12,28 @@ import {
   scoreDashboardPlanNeedsClampConfirmation,
 } from "../src/domain/score-dashboard/move";
 import { applyScoreDashboardFrontmatter } from "../src/data/score-dashboard/score-service";
-import { visibleScoreDashboardPaths } from "../src/ui/score-dashboard/renderer";
+import { refreshScoreDashboardDomSummary } from "../src/ui/score-dashboard/dom-move";
+import { ScoreDashboardView } from "../src/ui/score-dashboard/view";
+import {
+  renderScoreDashboard,
+  visibleScoreDashboardPaths,
+  type ScoreDashboardUiAdapters,
+  type ScoreDashboardUiState,
+} from "../src/ui/score-dashboard/renderer";
 import {
   preserveScoreDashboardAnchorScrollTop,
   scoreDashboardScaleFromWheel,
   scoreDashboardWheelIntent,
 } from "../src/domain/score-dashboard/gesture";
+import type { LibraryFilters } from "../src/domain/library-filters";
 import type { MediaItem, MediaType } from "../src/types";
 
-function item(title: string, score: number | null, mediaType: MediaType = "anime"): MediaItem {
+function item(
+  title: string,
+  score: number | null,
+  mediaType: MediaType = "anime",
+  overrides: Partial<MediaItem> = {},
+): MediaItem {
   return {
     title,
     originalTitle: "",
@@ -45,6 +58,7 @@ function item(title: string, score: number | null, mediaType: MediaType = "anime
     startedAt: "",
     completedAt: "",
     volumeLog: [],
+    ...overrides,
   };
 }
 
@@ -80,6 +94,48 @@ describe("score dashboard model", () => {
     const data = buildScoreDashboardData([item("Anime", 9, "anime"), item("Manga", 8, "manga")], "manga");
     assert.equal(data.total, 1);
     assert.equal(data.rated, 1);
+  });
+
+  it("filters items and counts using library filters", () => {
+    const matched = item("Match", 9, "anime", {
+      people: ["A-1 Pictures"],
+      season: "winter",
+      seasonYear: 2024,
+      genres: ["Action", "Sci-Fi"],
+    });
+    const mismatchedCompany = item("Wrong Studio", 9, "anime", {
+      people: ["Kyoto Animation"],
+      season: "winter",
+      seasonYear: 2024,
+      genres: ["Action"],
+    });
+    const mismatchedTag = item("Missing Tag", 9, "anime", {
+      people: ["A-1 Pictures"],
+      season: "winter",
+      seasonYear: 2024,
+      genres: ["Drama"],
+    });
+    const unratedMatched = item("Unrated Match", null, "anime", {
+      people: ["A-1 Pictures"],
+      season: "winter",
+      seasonYear: 2024,
+      genres: ["Action"],
+    });
+    const filters: LibraryFilters = {
+      companies: ["A-1 Pictures"],
+      quarter: "2024:winter",
+      tags: ["Action"],
+    };
+
+    const data = buildScoreDashboardData(
+      [matched, mismatchedCompany, mismatchedTag, unratedMatched],
+      "anime",
+      filters,
+    );
+    assert.equal(data.total, 2);
+    assert.equal(data.rated, 1);
+    assert.equal(data.groups.find((group) => group.major === 9)?.lanes[1].items[0].title, "Match");
+    assert.equal(data.unrated[0].title, "Unrated Match");
   });
 
   it("clamps and snaps slider zoom values from 20 to 200 percent", () => {
@@ -152,6 +208,20 @@ describe("score dashboard score moves", () => {
     assert.deepEqual(visibleScoreDashboardPaths(items, "anime", false), ["Anime.md"]);
     assert.deepEqual(visibleScoreDashboardPaths(items, "anime", true), ["Anime.md", "Hidden unrated.md"]);
   });
+
+  it("filters visible items by library filters for batch selection", () => {
+    const matched = item("Match", 8, "anime", { genres: ["Action"] });
+    const mismatched = item("Other", 8, "anime", { genres: ["Comedy"] });
+    const filters: LibraryFilters = {
+      companies: [],
+      quarter: "",
+      tags: ["Action"],
+    };
+    assert.deepEqual(
+      visibleScoreDashboardPaths([matched, mismatched], "anime", false, filters),
+      ["Match.md"],
+    );
+  });
 });
 
 describe("score dashboard gestures", () => {
@@ -178,5 +248,359 @@ describe("score dashboard gestures", () => {
   it("preserves the same visual anchor after layout reflow", () => {
     assert.equal(preserveScoreDashboardAnchorScrollTop(400, 240, 300), 460);
     assert.equal(preserveScoreDashboardAnchorScrollTop(20, 100, 40), 0);
+  });
+});
+
+class MockDomNode {
+  className = "";
+  textContent = "";
+  title = "";
+  type = "";
+  disabled = false;
+  draggable = false;
+  value = "";
+  min = "";
+  max = "";
+  step = "";
+  src = "";
+  alt = "";
+  loading = "";
+  decoding = "";
+  children: MockDomNode[] = [];
+  parentElement: MockDomNode | null = null;
+  dataset: Record<string, string> = {};
+  readonly attributes = new Map<string, string>();
+  readonly listeners = new Map<string, Array<(event: any) => void>>();
+  readonly inlineStyles = new Map<string, string>();
+
+  readonly classList = {
+    add: (...classes: string[]) => {
+      const set = new Set(this.className.split(" ").filter(Boolean));
+      classes.forEach((c) => set.add(c));
+      this.className = [...set].join(" ");
+    },
+    remove: (...classes: string[]) => {
+      const set = new Set(this.className.split(" ").filter(Boolean));
+      classes.forEach((c) => set.delete(c));
+      this.className = [...set].join(" ");
+    },
+    toggle: (c: string, force?: boolean) => {
+      const has = this.classList.contains(c);
+      const next = force !== undefined ? force : !has;
+      if (next) this.classList.add(c);
+      else this.classList.remove(c);
+      return next;
+    },
+    contains: (c: string) => this.className.split(" ").filter(Boolean).includes(c),
+  };
+
+  readonly style = {
+    setProperty: (name: string, value: string) => { this.inlineStyles.set(name, value); },
+    getPropertyValue: (name: string) => this.inlineStyles.get(name) ?? "",
+  };
+
+  readonly ownerDocument = {
+    defaultView: {
+      setTimeout: (fn: () => void) => { fn(); return 1; },
+      clearTimeout: () => {},
+      requestAnimationFrame: (fn: () => void) => { fn(); return 1; },
+    },
+    elementFromPoint: () => null,
+  };
+
+  constructor(readonly tagName: string) {}
+
+  get isConnected(): boolean {
+    return this.parentElement ? this.parentElement.isConnected : true;
+  }
+
+  append(...nodes: MockDomNode[]): void {
+    nodes.forEach((node) => this.appendChild(node));
+  }
+
+  appendChild(node: MockDomNode): MockDomNode {
+    node.parentElement = this;
+    this.children.push(node);
+    return node;
+  }
+
+  replaceChildren(...nodes: MockDomNode[]): void {
+    this.children = [];
+    this.append(...nodes);
+  }
+
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name, value);
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name) ?? null;
+  }
+
+  addEventListener(type: string, listener: (event: any) => void): void {
+    const list = this.listeners.get(type) ?? [];
+    list.push(listener);
+    this.listeners.set(type, list);
+  }
+
+  click(): void {
+    const list = this.listeners.get("click") ?? [];
+    list.forEach((fn) => fn({ target: this, defaultPrevented: false, preventDefault() {} }));
+  }
+
+  querySelector<T = MockDomNode>(selector: string): T | null {
+    const all = this.querySelectorAll<T>(selector);
+    return all.length ? all[0] : null;
+  }
+
+  querySelectorAll<T = MockDomNode>(selector: string): T[] {
+    if (selector.includes(",")) {
+      const parts = selector.split(",").map((s) => s.trim()).filter(Boolean);
+      const set = new Set<MockDomNode>();
+      for (const part of parts) {
+        for (const node of this.querySelectorAll<MockDomNode>(part)) {
+          set.add(node);
+        }
+      }
+      return [...set] as unknown as T[];
+    }
+    const tokens = selector.trim().split(/\s+/);
+    if (tokens.length > 1) {
+      const [first, ...rest] = tokens;
+      const restSelector = rest.join(" ");
+      const firstMatches = this.querySelectorAll<MockDomNode>(first);
+      const results: MockDomNode[] = [];
+      for (const match of firstMatches) {
+        results.push(...match.querySelectorAll<MockDomNode>(restSelector));
+      }
+      return results as unknown as T[];
+    }
+    const single = tokens[0];
+    const results: MockDomNode[] = [];
+    const check = (node: MockDomNode) => {
+      let match = true;
+      let target = single;
+      if (target.includes(":first-child")) {
+        target = target.replace(":first-child", "");
+        if (node.parentElement?.children[0] !== node) match = false;
+      }
+      if (target.includes(":last-child")) {
+        target = target.replace(":last-child", "");
+        if (node.parentElement?.children.at(-1) !== node) match = false;
+      }
+      if (match && target) {
+        if (target.startsWith(".")) {
+          const cls = target.slice(1);
+          if (!node.classList.contains(cls)) match = false;
+        } else if (target.startsWith("[") && target.endsWith("]")) {
+          const [attr, val] = target.slice(1, -1).split("=");
+          const rawAttr = attr.startsWith("data-") ? node.dataset[attr.slice(5)] : node.getAttribute(attr);
+          const expectedVal = val ? val.replace(/^["']|["']$/g, "") : undefined;
+          if (expectedVal !== undefined ? rawAttr !== expectedVal : rawAttr == null) match = false;
+        } else if (target === "button" && node.tagName.toLowerCase() !== "button") {
+          match = false;
+        }
+      }
+      if (match) results.push(node);
+      for (const child of node.children) check(child);
+    };
+    for (const child of this.children) check(child);
+    return results as unknown as T[];
+  }
+
+  closest<T = MockDomNode>(selector: string): T | null {
+    if (selector.startsWith(".")) {
+      if (this.classList.contains(selector.slice(1))) return this as unknown as T;
+    }
+    return this.parentElement ? this.parentElement.closest<T>(selector) : null;
+  }
+
+  getBoundingClientRect() {
+    return { left: 0, top: 0, width: 100, height: 100 };
+  }
+}
+
+describe("score dashboard filter UI", () => {
+  const originalCreateEl = globalThis.createEl;
+
+  it("renders a filter button and opens filter modal on click, then applies filters", () => {
+    Object.defineProperty(globalThis, "createEl", {
+      configurable: true,
+      value: (tag: string) => new MockDomNode(tag),
+    });
+
+    try {
+      const container = new MockDomNode("div");
+      const items = [
+        item("Item 1", 9, "anime", { people: ["A-1 Pictures"], season: "winter", seasonYear: 2024, genres: ["Action"] }),
+        item("Item 2", 9, "anime", { people: ["CloverWorks"], season: "spring", seasonYear: 2024, genres: ["Comedy"] }),
+      ];
+
+      let openModalCalled = false;
+      let appliedState: ScoreDashboardUiState | null = null;
+      let modalFilters: any = null;
+      let modalOptions: any = null;
+      let modalApplyCallback: ((f: any) => void) | null = null;
+
+      const adapters: ScoreDashboardUiAdapters = {
+        openFile: () => {},
+        applyChanges: async () => {},
+        confirmClamp: async () => true,
+        showNotice: () => {},
+        onStateChange: (state) => { appliedState = state; },
+        openFilterModal: (filters, options, onApply) => {
+          openModalCalled = true;
+          modalFilters = filters;
+          modalOptions = options;
+          modalApplyCallback = onApply;
+        },
+      };
+
+      renderScoreDashboard(
+        container as unknown as HTMLElement,
+        items,
+        { type: "all", scale: 100, showUnrated: false },
+        adapters,
+      );
+
+      const filterButton = container.querySelector<MockDomNode>("[data-action='filter']");
+      assert.ok(filterButton, "Filter button should be rendered in dashboard controls");
+      assert.equal(filterButton.disabled, false);
+      assert.equal(filterButton.classList.contains("is-active"), false);
+
+      // Initially both items are in the board
+      const initialPosters = container.querySelectorAll<MockDomNode>(".al-score-poster");
+      assert.equal(initialPosters.length, 2);
+
+      // Click filter button
+      filterButton.click();
+      assert.equal(openModalCalled, true);
+      assert.deepEqual(modalFilters, { companies: [], quarter: "", tags: [] });
+      assert.ok(modalOptions.companies.includes("A-1 Pictures"));
+      assert.ok(modalOptions.companies.includes("CloverWorks"));
+
+      // Apply filter for A-1 Pictures
+      modalApplyCallback!({ companies: ["A-1 Pictures"], quarter: "", tags: [] });
+
+      // After applying:
+      assert.equal(filterButton.classList.contains("is-active"), true);
+      assert.deepEqual(appliedState?.filters, { companies: ["A-1 Pictures"], quarter: "", tags: [] });
+
+      // Board should now only show Item 1
+      const filteredPosters = container.querySelectorAll<MockDomNode>(".al-score-poster");
+      assert.equal(filteredPosters.length, 1);
+      assert.equal(filteredPosters[0].dataset.filePath, "Item 1.md");
+    } finally {
+      Object.defineProperty(globalThis, "createEl", { configurable: true, value: originalCreateEl });
+    }
+  });
+
+  it("disables filter button if openFilterModal adapter is not provided", () => {
+    Object.defineProperty(globalThis, "createEl", {
+      configurable: true,
+      value: (tag: string) => new MockDomNode(tag),
+    });
+
+    try {
+      const container = new MockDomNode("div");
+      const items = [item("Item 1", 9, "anime")];
+      const adapters: ScoreDashboardUiAdapters = {
+        openFile: () => {},
+        applyChanges: async () => {},
+        confirmClamp: async () => true,
+        showNotice: () => {},
+        onStateChange: () => {},
+      };
+
+      renderScoreDashboard(
+        container as unknown as HTMLElement,
+        items,
+        { type: "all", scale: 100, showUnrated: false },
+        adapters,
+      );
+
+      const filterButton = container.querySelector<MockDomNode>("[data-action='filter']");
+      assert.ok(filterButton, "Filter button should be rendered in dashboard controls");
+      assert.equal(filterButton.disabled, true);
+    } finally {
+      Object.defineProperty(globalThis, "createEl", { configurable: true, value: originalCreateEl });
+    }
+  });
+});
+
+describe("score dashboard DOM summary refresh", () => {
+  it("reflects active filters when updating summary and unrated badge", () => {
+    const container = new MockDomNode("div");
+    const summary = new MockDomNode("div");
+    summary.className = "al-score-dashboard-summary";
+
+    const actionGroup = new MockDomNode("div");
+    actionGroup.className = "al-score-dashboard-action-group";
+    const unratedButton = new MockDomNode("button");
+    unratedButton.className = "al-score-tool-button";
+    unratedButton.dataset.action = "unrated";
+    const badge = new MockDomNode("span");
+    badge.className = "al-score-tool-badge";
+    unratedButton.appendChild(badge);
+    actionGroup.appendChild(unratedButton);
+
+    container.appendChild(summary);
+    container.appendChild(actionGroup);
+
+    const items = [
+      item("Match Rated", 9, "anime", { genres: ["Action"] }),
+      item("Match Unrated", null, "anime", { genres: ["Action"] }),
+      item("Other Rated", 9, "anime", { genres: ["Comedy"] }),
+      item("Other Unrated", null, "anime", { genres: ["Comedy"] }),
+    ];
+
+    const filters: LibraryFilters = {
+      companies: [],
+      quarter: "",
+      tags: ["Action"],
+    };
+
+    refreshScoreDashboardDomSummary(
+      container as unknown as HTMLElement,
+      items,
+      "anime",
+      filters,
+    );
+
+    assert.equal(badge.textContent, "1");
+    assert.ok(/1[／/]2/.test(summary.textContent));
+  });
+});
+
+describe("score dashboard view state persistence", () => {
+  it("persists and restores library filters", async () => {
+    const pluginHost: any = {
+      collectMediaItems: () => [],
+      openMediaFile: async () => {},
+      applyScoreChanges: async () => {},
+      confirmScoreClamp: async () => true,
+      showNotice: () => {},
+    };
+    const leaf: any = {};
+    const view = new ScoreDashboardView(leaf, pluginHost);
+    (view as any).render = () => {};
+
+    await view.setState({
+      type: "anime",
+      scale: 100,
+      showUnrated: true,
+      filters: {
+        companies: ["Kyoto Animation"],
+        quarter: "2024:winter",
+        tags: ["Slice of Life"],
+      },
+    });
+
+    const state = view.getState();
+    assert.deepEqual(state.filters, {
+      companies: ["Kyoto Animation"],
+      quarter: "2024:winter",
+      tags: ["Slice of Life"],
+    });
   });
 });

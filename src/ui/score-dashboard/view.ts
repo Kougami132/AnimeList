@@ -6,6 +6,8 @@ import type { ScoreDashboardClampSummary } from "./operation-ui";
 import { scoreDashboardText as text } from "../../features/score-dashboard/text";
 import type { ScoreDashboardUiState } from "./renderer";
 import type { MediaItem } from "../../types";
+import { normalizeLibraryFilters, type LibraryFilterOptions, type LibraryFilters } from "../../domain/library-filters";
+import { LibraryFilterModal } from "../library-filter-modal";
 
 export const SCORE_DASHBOARD_VIEW_TYPE = "animelist-score-dashboard";
 
@@ -15,17 +17,28 @@ export interface ScoreDashboardPluginHost {
   applyScoreChanges(changes: readonly ScoreDashboardScoreChange[]): Promise<void>;
   confirmScoreClamp(summary: ScoreDashboardClampSummary): Promise<boolean>;
   showNotice(message: string): void;
+  openFilterModal?(
+    filters: LibraryFilters,
+    options: LibraryFilterOptions,
+    onApply: (filters: LibraryFilters) => void,
+  ): void;
 }
 
 interface PersistedState {
   type?: ScoreDashboardUiState["type"];
   scale?: number;
   showUnrated?: boolean;
+  filters?: LibraryFilters;
   scrollTop?: number;
 }
 
 export class ScoreDashboardView extends ItemView {
-  private state: ScoreDashboardUiState = { type: "all", scale: SCORE_DASHBOARD_DEFAULT_SCALE, showUnrated: false };
+  private state: ScoreDashboardUiState = {
+    type: "all",
+    scale: SCORE_DASHBOARD_DEFAULT_SCALE,
+    showUnrated: false,
+    filters: normalizeLibraryFilters({}),
+  };
   private refreshTimer: number | null = null;
   private pendingScrollTop = 0;
 
@@ -41,7 +54,11 @@ export class ScoreDashboardView extends ItemView {
   }
 
   getState(): PersistedState {
-    return { ...this.state, scrollTop: this.contentEl.scrollTop };
+    return {
+      ...this.state,
+      filters: normalizeLibraryFilters(this.state.filters),
+      scrollTop: this.contentEl.scrollTop,
+    };
   }
 
   async setState(state: PersistedState): Promise<void> {
@@ -49,6 +66,7 @@ export class ScoreDashboardView extends ItemView {
       type: state.type === "anime" || state.type === "manga" || state.type === "novel" ? state.type : "all",
       scale: normalizeScoreDashboardScale(state.scale),
       showUnrated: state.showUnrated === true,
+      filters: normalizeLibraryFilters(state.filters),
     };
     this.pendingScrollTop = Math.max(0, Number(state.scrollTop) || 0);
     this.render();
@@ -67,6 +85,13 @@ export class ScoreDashboardView extends ItemView {
       applyChanges: (changes) => this.plugin.applyScoreChanges(changes),
       confirmClamp: (summary) => this.plugin.confirmScoreClamp(summary),
       showNotice: (message) => this.plugin.showNotice(message),
+      openFilterModal: (filters, options, onApply) => {
+        if (this.plugin.openFilterModal) {
+          this.plugin.openFilterModal(filters, options, onApply);
+        } else {
+          new LibraryFilterModal(this.app, filters, options, onApply).open();
+        }
+      },
       onStateChange: (state) => { this.state = state; },
     });
     window.requestAnimationFrame(() => { this.contentEl.scrollTop = scrollTop; });

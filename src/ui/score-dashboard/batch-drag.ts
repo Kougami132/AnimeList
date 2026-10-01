@@ -135,7 +135,7 @@ export function renderScoreDashboardWithBatchDrag(
           if (!local.applied) {
             render(preservedScrollTop, restoreBatchMode);
           } else {
-            refreshScoreDashboardDomSummary(container, items, currentState.type);
+            refreshScoreDashboardDomSummary(container, items, currentState.type, currentState.filters);
             // Clear the batch selection through the renderer's own state machine
             // without replacing the board. Re-enter only for desktop batch drag.
             if (shell.classList.contains("is-batch-mode")) batchButton.click();

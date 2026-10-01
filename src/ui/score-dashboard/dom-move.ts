@@ -1,5 +1,6 @@
 import { buildScoreDashboardData, type ScoreDashboardMediaType } from "../../domain/score-dashboard/model";
 import type { ScoreDashboardScoreChange } from "../../domain/score-dashboard/move";
+import type { LibraryFilters } from "../../domain/library-filters";
 import { scoreDashboardText as text } from "../../features/score-dashboard/text";
 import type { MediaItem } from "../../types";
 import { animateLayoutChange } from "../layout-motion";
@@ -105,11 +106,14 @@ export function refreshScoreDashboardDomSummary(
   container: HTMLElement,
   items: readonly MediaItem[],
   type: ScoreDashboardMediaType,
+  filters?: LibraryFilters,
 ): void {
   const shell = container.querySelector<HTMLElement>(".al-score-dashboard");
   const summary = container.querySelector<HTMLElement>(".al-score-dashboard-summary");
-  const unratedButton = container.querySelector<HTMLButtonElement>(".al-score-dashboard-action-group .al-score-tool-button:first-child");
-  const data = buildScoreDashboardData(items, type);
+  const unratedButton = container.querySelector<HTMLButtonElement>(
+    ".al-score-dashboard-action-group [data-action='unrated'], .al-score-dashboard-action-group .al-score-tool-button:first-child",
+  );
+  const data = buildScoreDashboardData(items, type, filters);
   if (summary) {
     summary.textContent = `${text.ratedSummary(data.rated, data.total)} · ${shell?.classList.contains("is-batch-mode") ? text.selectionHint : text.dragHint}`;
   }

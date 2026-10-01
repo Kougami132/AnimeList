@@ -1,4 +1,6 @@
 import { formatRating, normalizeRating } from "../rating";
+import type { LibraryFilters } from "../library-filters";
+import { libraryItemMatchesFilters } from "../library-filters";
 import type { MediaItem, MediaType } from "../../types";
 
 export type ScoreDashboardMediaType = "all" | MediaType;
@@ -63,8 +65,16 @@ export function scoreDashboardScores(): number[] {
   return Array.from({ length: 21 }, (_, index) => Number((10 - index * 0.5).toFixed(1)));
 }
 
-export function filterScoreDashboardItems(items: readonly MediaItem[], type: ScoreDashboardMediaType): MediaItem[] {
-  return type === "all" ? [...items] : items.filter((item) => item.mediaType === type);
+export function filterScoreDashboardItems(
+  items: readonly MediaItem[],
+  type: ScoreDashboardMediaType,
+  filters?: LibraryFilters,
+): MediaItem[] {
+  let filtered = type === "all" ? [...items] : items.filter((item) => item.mediaType === type);
+  if (filters) {
+    filtered = filtered.filter((item) => libraryItemMatchesFilters(item, filters));
+  }
+  return filtered;
 }
 
 function titleOrder(left: MediaItem, right: MediaItem): number {
@@ -74,8 +84,9 @@ function titleOrder(left: MediaItem, right: MediaItem): number {
 export function buildScoreDashboardData(
   inputItems: readonly MediaItem[],
   type: ScoreDashboardMediaType = "all",
+  filters?: LibraryFilters,
 ): ScoreDashboardData {
-  const items = filterScoreDashboardItems(inputItems, type);
+  const items = filterScoreDashboardItems(inputItems, type, filters);
   const lanes = new Map(scoreDashboardScores().map((score) => [score, [] as MediaItem[]]));
   const unrated: MediaItem[] = [];
 

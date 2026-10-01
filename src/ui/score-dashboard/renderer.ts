@@ -29,11 +29,21 @@ import type { ScoreDashboardMediaType } from "../../domain/score-dashboard/model
 import { applyScoreDashboardDomChanges } from "./dom-move";
 import { animateLayoutChange } from "../layout-motion";
 import { isolateHorizontalSwipeSurface } from "../mobile-swipe-isolation";
+import {
+  collectLibraryFilterOptions,
+  libraryFilterCount,
+  normalizeLibraryFilters,
+  reconcileLibraryFilters,
+  type LibraryFilterOptions,
+  type LibraryFilters,
+} from "../../domain/library-filters";
+import { uiText } from "../../ui-text";
 
 export interface ScoreDashboardUiState {
   type: ScoreDashboardMediaType;
   scale: number;
   showUnrated: boolean;
+  filters?: LibraryFilters;
 }
 
 export interface ScoreDashboardUiAdapters {
@@ -42,6 +52,11 @@ export interface ScoreDashboardUiAdapters {
   confirmClamp(summary: ScoreDashboardClampSummary): Promise<boolean>;
   showNotice(message: string): void;
   onStateChange(state: ScoreDashboardUiState): void;
+  openFilterModal?(
+    filters: LibraryFilters,
+    options: LibraryFilterOptions,
+    onApply: (filters: LibraryFilters) => void,
+  ): void;
 }
 
 type ScoreDashboardAppliedHandler = (changes: readonly ScoreDashboardScoreChange[]) => boolean;
@@ -82,8 +97,9 @@ export function visibleScoreDashboardPaths(
   items: readonly MediaItem[],
   type: ScoreDashboardMediaType,
   showUnrated: boolean,
+  filters?: LibraryFilters,
 ): string[] {
-  return filterScoreDashboardItems(items, type)
+  return filterScoreDashboardItems(items, type, filters)
     .filter((item) => showUnrated || item.score != null)
     .map((item) => item.filePath);
 }
@@ -103,10 +119,12 @@ export function renderScoreDashboard(
   initialState: ScoreDashboardUiState,
   adapters: ScoreDashboardUiAdapters,
 ): void {
+  const filterOptions = collectLibraryFilterOptions(items);
   const state: ScoreDashboardUiState = {
     type: TYPE_OPTIONS.some(([value]) => value === initialState.type) ? initialState.type : "all",
     scale: normalizeScoreDashboardScale(initialState.scale),
     showUnrated: initialState.showUnrated === true,
+    filters: reconcileLibraryFilters(normalizeLibraryFilters(initialState.filters), filterOptions),
   };
   const selectedPaths = new Set<string>();
   let batchMode = false;
@@ -146,9 +164,14 @@ export function renderScoreDashboard(
   const actionGroup = create("div", "al-score-dashboard-action-group");
   const unratedButton = create("button", "al-score-tool-button");
   unratedButton.type = "button";
+  unratedButton.dataset.action = "unrated";
+  const filterButton = create("button", "al-score-tool-button al-score-filter-button");
+  filterButton.type = "button";
+  filterButton.dataset.action = "filter";
   const batchButton = create("button", "al-score-tool-button");
   batchButton.type = "button";
-  actionGroup.append(unratedButton, batchButton);
+  batchButton.dataset.action = "batch";
+  actionGroup.append(unratedButton, filterButton, batchButton);
   const zoom = create("label", "al-score-dashboard-zoom");
   const zoomLabel = create("span", "", text.zoom);
   const zoomInput = create("input");
@@ -189,7 +212,10 @@ export function renderScoreDashboard(
   const posterCache = new Map<string, HTMLButtonElement>();
   shell.append(header, controls, batchBar, board);
 
-  const emitState = () => adapters.onStateChange({ ...state });
+  const emitState = () => adapters.onStateChange({
+    ...state,
+    filters: normalizeLibraryFilters(state.filters),
+  });
   const scheduleStateSave = () => {
     window.clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
@@ -258,10 +284,25 @@ export function renderScoreDashboard(
     setToolButton(unratedButton, state.showUnrated ? "eye" : "eye-off", text.unrated, String(count));
   };
 
+  const updateFilterControl = (): void => {
+    const count = libraryFilterCount(state.filters ?? normalizeLibraryFilters({}));
+    filterButton.classList.toggle("is-active", count > 0);
+    filterButton.setAttribute("aria-pressed", String(count > 0));
+    filterButton.title = uiText("library.filterButton");
+    filterButton.setAttribute("aria-label", uiText("library.filterButton"));
+    setToolButton(
+      filterButton,
+      "filter",
+      uiText("library.filterButton"),
+      count > 0 ? String(count) : null,
+    );
+  };
+
   const updateSummary = (): void => {
-    const data = buildScoreDashboardData(items, state.type);
+    const data = buildScoreDashboardData(items, state.type, state.filters);
     summary.textContent = `${text.ratedSummary(data.rated, data.total)} · ${batchMode ? text.selectionHint : text.dragHint}`;
     updateUnratedControl(data.unrated.length);
+    updateFilterControl();
   };
 
   const applyDroppedChange = (
@@ -458,7 +499,7 @@ export function renderScoreDashboard(
 
   const update = (): void => {
     const scrollTop = container.scrollTop;
-    const data = buildScoreDashboardData(items, state.type);
+    const data = buildScoreDashboardData(items, state.type, state.filters);
     continuousScale = state.scale;
     applyScale();
     updateScaleControls();
@@ -473,6 +514,7 @@ export function renderScoreDashboard(
     });
 
     updateUnratedControl(data.unrated.length);
+    updateFilterControl();
     updateBatchControls();
 
     const laneMounts: Array<{ lane: HTMLElement; items: readonly MediaItem[] }> = [];
@@ -529,8 +571,24 @@ export function renderScoreDashboard(
     updateBatchControls();
     updateSummary();
   });
+  if (adapters.openFilterModal) {
+    filterButton.addEventListener("click", () => {
+      adapters.openFilterModal(
+        normalizeLibraryFilters(state.filters),
+        filterOptions,
+        (filters) => {
+          state.filters = reconcileLibraryFilters(normalizeLibraryFilters(filters), filterOptions);
+          selectedPaths.clear();
+          update();
+          emitState();
+        },
+      );
+    });
+  } else {
+    filterButton.disabled = true;
+  }
   selectVisibleButton.addEventListener("click", () => {
-    visibleScoreDashboardPaths(items, state.type, state.showUnrated).forEach((path) => selectedPaths.add(path));
+    visibleScoreDashboardPaths(items, state.type, state.showUnrated, state.filters).forEach((path) => selectedPaths.add(path));
     refreshPosterSelections();
     updateBatchControls();
   });

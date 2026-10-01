@@ -71,11 +71,28 @@ export interface BangumiUserCollectionsResponse {
 export class BangumiSyncClient {
   private lastRequestTime = 0;
   private minIntervalMs = 200;
+  private usernameCache = new Map<string, string>();
 
   constructor(options?: { minIntervalMs?: number }) {
     if (typeof options?.minIntervalMs === "number") {
       this.minIntervalMs = options.minIntervalMs;
     }
+  }
+
+  async getUsername(token: string): Promise<string> {
+    const trimmed = token.trim();
+    const cached = this.usernameCache.get(trimmed);
+    if (cached) return cached;
+    try {
+      const profile = await this.verifyToken(trimmed);
+      if (profile.username) {
+        this.usernameCache.set(trimmed, profile.username);
+        return profile.username;
+      }
+    } catch {
+      // Fall back to '-' if verification fails or username is not available
+    }
+    return "-";
   }
 
   private async throttle(): Promise<void> {
@@ -97,7 +114,7 @@ export class BangumiSyncClient {
     await this.throttle();
     try {
       const response = await requestWithTimeout({
-        url: `${BANGUMI_API_BASE}/users/-/me`,
+        url: `${BANGUMI_API_BASE}/me`,
         method: "GET",
         headers: {
           Authorization: `Bearer ${trimmed}`,
@@ -117,7 +134,7 @@ export class BangumiSyncClient {
       const data = record(parsed);
       const avatarObj = record(data.avatar);
 
-      return {
+      const profile: BangumiUserProfile = {
         id: numProp(data, "id"),
         username: stringProp(data, "username"),
         nickname: stringProp(data, "nickname") || stringProp(data, "username"),
@@ -128,6 +145,10 @@ export class BangumiSyncClient {
         },
         sign: stringProp(data, "sign") || undefined,
       };
+      if (profile.username) {
+        this.usernameCache.set(trimmed, profile.username);
+      }
+      return profile;
     } catch (error) {
       if (error instanceof Error) {
         const message = error.message;
@@ -143,11 +164,12 @@ export class BangumiSyncClient {
 
   async fetchUserCollections(
     token: string,
-    options: { subjectType?: number; type?: number; limit?: number; offset?: number } = {},
+    options: { subjectType?: number; type?: number; limit?: number; offset?: number; username?: string } = {},
   ): Promise<BangumiUserCollectionsResponse> {
     const trimmed = token.trim();
     if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
 
+    const username = options.username || await this.getUsername(trimmed);
     const query = new URLSearchParams();
     if (typeof options.subjectType === "number") query.set("subject_type", String(options.subjectType));
     if (typeof options.type === "number") query.set("type", String(options.type));
@@ -156,7 +178,7 @@ export class BangumiSyncClient {
 
     await this.throttle();
     const response = await requestWithTimeout({
-      url: `${BANGUMI_API_BASE}/users/-/collections?${query.toString()}`,
+      url: `${BANGUMI_API_BASE}/users/${encodeURIComponent(username)}/collections?${query.toString()}`,
       method: "GET",
       headers: {
         Authorization: `Bearer ${trimmed}`,
@@ -184,14 +206,15 @@ export class BangumiSyncClient {
     };
   }
 
-  async fetchCollection(token: string, subjectId: number): Promise<BangumiCollectionResponseItem | null> {
+  async fetchCollection(token: string, subjectId: number, username?: string): Promise<BangumiCollectionResponseItem | null> {
     const trimmed = token.trim();
     if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
 
+    const user = username || await this.getUsername(trimmed);
     await this.throttle();
     try {
       const response = await requestWithTimeout({
-        url: `${BANGUMI_API_BASE}/users/-/collections/${subjectId}`,
+        url: `${BANGUMI_API_BASE}/users/${encodeURIComponent(user)}/collections/${subjectId}`,
         method: "GET",
         headers: {
           Authorization: `Bearer ${trimmed}`,

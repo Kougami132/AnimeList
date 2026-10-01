@@ -105,26 +105,42 @@ describe("BangumiSyncClient connection verification", () => {
   it("verifies valid token and parses profile", async () => {
     const client = new BangumiSyncClient({ minIntervalMs: 0 });
     let passedHeaders: Record<string, string> = {};
+    let passedUrl = "";
 
     setRequestUrlMock((options) => {
+      passedUrl = options.url;
       passedHeaders = options.headers;
-      return {
-        status: 200,
-        json: {
-          id: 123456,
-          username: "anime_fan",
-          nickname: "AnimeFan",
-          avatar: {
-            large: "https://lain.bgm.tv/pic/user/l/000/12/34/123456.jpg",
-            medium: "https://lain.bgm.tv/pic/user/m/000/12/34/123456.jpg",
-            small: "https://lain.bgm.tv/pic/user/s/000/12/34/123456.jpg",
+      if (options.url === "https://api.bgm.tv/v0/users/-/me") {
+        return {
+          status: 404,
+          text: JSON.stringify({
+            title: "Not Found",
+            details: { path: "/v0/users/-/me", method: "GET" },
+            description: "This is default response, if you see this response, please check your request",
+          }),
+        };
+      }
+      if (options.url === "https://api.bgm.tv/v0/me") {
+        return {
+          status: 200,
+          json: {
+            id: 123456,
+            username: "anime_fan",
+            nickname: "AnimeFan",
+            avatar: {
+              large: "https://lain.bgm.tv/pic/user/l/000/12/34/123456.jpg",
+              medium: "https://lain.bgm.tv/pic/user/m/000/12/34/123456.jpg",
+              small: "https://lain.bgm.tv/pic/user/s/000/12/34/123456.jpg",
+            },
+            sign: "Anime is life",
           },
-          sign: "Anime is life",
-        },
-      };
+        };
+      }
+      return { status: 404 };
     });
 
     const profile = await client.verifyToken("test_secret_token_123");
+    assert.equal(passedUrl, "https://api.bgm.tv/v0/me");
     assert.equal(profile.id, 123456);
     assert.equal(profile.username, "anime_fan");
     assert.equal(profile.nickname, "AnimeFan");
@@ -165,6 +181,59 @@ describe("BangumiSyncClient connection verification", () => {
         return true;
       },
     );
+  });
+
+  it("queries user collections using resolved username", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const requestedUrls: string[] = [];
+
+    setRequestUrlMock((options) => {
+      requestedUrls.push(options.url);
+      if (options.url === "https://api.bgm.tv/v0/me") {
+        return {
+          status: 200,
+          json: { id: 586142, username: "kougami", nickname: "Kougami" },
+        };
+      }
+      if (options.url.startsWith("https://api.bgm.tv/v0/users/kougami/collections")) {
+        return {
+          status: 200,
+          json: { total: 1, limit: 30, offset: 0, data: [] },
+        };
+      }
+      return { status: 404 };
+    });
+
+    const res = await client.fetchUserCollections("test_token");
+    assert.equal(res.total, 1);
+    assert.ok(requestedUrls.some((u) => u.startsWith("https://api.bgm.tv/v0/users/kougami/collections")));
+  });
+
+  it("queries single collection using resolved username", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const requestedUrls: string[] = [];
+
+    setRequestUrlMock((options) => {
+      requestedUrls.push(options.url);
+      if (options.url === "https://api.bgm.tv/v0/me") {
+        return {
+          status: 200,
+          json: { id: 586142, username: "kougami", nickname: "Kougami" },
+        };
+      }
+      if (options.url === "https://api.bgm.tv/v0/users/kougami/collections/12345") {
+        return {
+          status: 200,
+          json: { subject_id: 12345, type: 2, ep_status: 12, rate: 8, updated_at: "2024-01-01T00:00:00Z" },
+        };
+      }
+      return { status: 404 };
+    });
+
+    const item = await client.fetchCollection("test_token", 12345);
+    assert.ok(item !== null);
+    assert.equal(item?.subject_id, 12345);
+    assert.ok(requestedUrls.includes("https://api.bgm.tv/v0/users/kougami/collections/12345"));
   });
 });
 

@@ -13,6 +13,12 @@ import type { AnimeListSettings } from "../domain/settings-types";
 import { normalizeLibraryFilters } from "../domain/library-filters";
 import { normalizeLibraryLayoutColumns } from "../domain/library-layout";
 import { normalizeUserTagCatalog } from "../domain/user-tag-catalog";
+import {
+  DEFAULT_BANGUMI_COLLECTION_TYPES,
+  DEFAULT_SYNC_RECENT_DAYS,
+  DEFAULT_AUTO_SYNC_COOLDOWN_MINUTES,
+  normalizeBangumiCollectionTypes,
+} from "../domain/bangumi-sync/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -63,6 +69,12 @@ export const DEFAULT_SETTINGS: AnimeListSettings = {
     view: "grid",
     layoutColumns: normalizeLibraryLayoutColumns(undefined),
   },
+  bangumiAccessToken: "",
+  syncRecentDays: DEFAULT_SYNC_RECENT_DAYS,
+  syncCollectionTypes: [...DEFAULT_BANGUMI_COLLECTION_TYPES],
+  autoSyncOnStartup: false,
+  autoSyncCooldownMinutes: DEFAULT_AUTO_SYNC_COOLDOWN_MINUTES,
+  lastSyncTimestamp: 0,
 };
 
 export function createDefaultSettings(): AnimeListSettings {
@@ -136,5 +148,19 @@ export function normalizeAnimeListSettings(value: unknown): AnimeListSettings {
       view: uiState.view === "list" || uiState.view === "poster" ? uiState.view : "grid",
       layoutColumns: normalizeLibraryLayoutColumns(uiState.layoutColumns),
     },
+    bangumiAccessToken: typeof loaded.bangumiAccessToken === "string"
+      ? loaded.bangumiAccessToken.trim()
+      : DEFAULT_SETTINGS.bangumiAccessToken,
+    syncRecentDays: typeof loaded.syncRecentDays === "number" && Number.isFinite(loaded.syncRecentDays) && loaded.syncRecentDays > 0
+      ? Math.round(loaded.syncRecentDays)
+      : DEFAULT_SETTINGS.syncRecentDays,
+    syncCollectionTypes: normalizeBangumiCollectionTypes(loaded.syncCollectionTypes),
+    autoSyncOnStartup: loaded.autoSyncOnStartup === true,
+    autoSyncCooldownMinutes: typeof loaded.autoSyncCooldownMinutes === "number" && Number.isFinite(loaded.autoSyncCooldownMinutes) && loaded.autoSyncCooldownMinutes > 0
+      ? Math.round(loaded.autoSyncCooldownMinutes)
+      : DEFAULT_SETTINGS.autoSyncCooldownMinutes,
+    lastSyncTimestamp: typeof loaded.lastSyncTimestamp === "number" && Number.isFinite(loaded.lastSyncTimestamp) && loaded.lastSyncTimestamp >= 0
+      ? Math.round(loaded.lastSyncTimestamp)
+      : 0,
   };
 }

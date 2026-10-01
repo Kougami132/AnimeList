@@ -51,6 +51,7 @@ const FEATURE_SETTINGS_PAGES: Readonly<Record<string, SettingsPageId>> = Object.
   "serial-cover-settings": "features",
   "user-tag-catalog": "features",
   masterpiece: "features",
+  "bangumi-sync": "features",
   "legacy-metadata-cleanup-settings": "updates-cleanup",
   "version-cleanup-settings": "updates-cleanup",
 });

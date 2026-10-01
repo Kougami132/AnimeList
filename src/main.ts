@@ -99,6 +99,7 @@ export class AnimeListPlugin extends Plugin implements AnimeListUiHost {
       {
         openMediaFile: (path) => this.openMediaFile(path),
         refreshViews: () => this.refreshViews(),
+        saveSettings: () => this.saveSettings(),
       },
     );
     return this.application;
@@ -337,6 +338,23 @@ export class AnimeListPlugin extends Plugin implements AnimeListUiHost {
     signal?: AbortSignal,
   ): Promise<SerialCoverMigrationSummary> {
     return loadMissingSerialCovers(this, onProgress, signal);
+  }
+
+  bangumiSyncService(): ReturnType<AnimeListApplicationServices["bangumiSync"]> {
+    return this.services().bangumiSync();
+  }
+
+  async syncBangumiCurrentAnime(): Promise<void> {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) {
+      new Notice("No active file selected.");
+      return;
+    }
+    await this.bangumiSyncService().syncSingleNote(file);
+  }
+
+  async syncBangumiNote(file: TFile): Promise<Awaited<ReturnType<ReturnType<AnimeListApplicationServices["bangumiSync"]>["syncSingleNote"]>>> {
+    return this.bangumiSyncService().syncSingleNote(file);
   }
 }
 

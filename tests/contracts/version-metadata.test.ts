@@ -49,7 +49,7 @@ describe("release version metadata", () => {
       const result = spawnSync(
         npmCommand,
         ["run", "release:version", "--", "9.8.7"],
-        { cwd: fixture, encoding: "utf8" },
+        { cwd: fixture, encoding: "utf8", shell: process.platform === "win32" },
       );
       assert.equal(result.status, 0, result.stderr || result.stdout);
 
@@ -77,7 +77,11 @@ describe("release version metadata", () => {
       packageJson.version = "9.8.6";
       writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
-      const result = spawnSync(npmCommand, ["run", "version:sync"], { cwd: fixture, encoding: "utf8" });
+      const result = spawnSync(
+        npmCommand,
+        ["run", "version:sync"],
+        { cwd: fixture, encoding: "utf8", shell: process.platform === "win32" },
+      );
       assert.equal(result.status, 0, result.stderr || result.stdout);
       assert.deepEqual(collectVersionMetadataFailures(loadVersionMetadata(fixture)), []);
     } finally {

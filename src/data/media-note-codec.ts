@@ -127,6 +127,7 @@ export interface ValidatedMediaNoteForm {
 function validateMediaNoteFormForType(
   mediaType: MediaType,
   form: MediaNoteForm,
+  options?: { allowEmptyCompletedScore?: boolean },
 ): ValidatedMediaNoteForm {
   const title = stringValue(form.title).trim();
   const hasScore = form.score !== "" && form.score != null;
@@ -134,7 +135,7 @@ function validateMediaNoteFormForType(
   const completedAt = stringValue(form.completedAt).trim();
   const status = normalizeMediaStatus(form.status);
   if (!title) throw new Error(uiText("validation.titleRequired"));
-  if (status === "completed" && !hasScore) {
+  if (status === "completed" && !hasScore && !options?.allowEmptyCompletedScore) {
     throw new Error(completedRequirementMessage(mediaType, uiText("field.score")));
   }
   if (hasScore && (score == null || !Number.isFinite(score) || score < 0 || score > 10)) {
@@ -149,16 +150,18 @@ function validateMediaNoteFormForType(
 export function validateMediaNoteForm(
   result: ExternalMediaResult,
   form: MediaNoteForm,
+  options?: { allowEmptyCompletedScore?: boolean },
 ): ValidatedMediaNoteForm {
-  return validateMediaNoteFormForType(result.mediaType, form);
+  return validateMediaNoteFormForType(result.mediaType, form, options);
 }
 
 export function applyEditableMediaForm(
   frontmatter: Record<string, unknown>,
   mediaType: MediaType,
   form: MediaNoteForm,
+  options?: { allowEmptyCompletedScore?: boolean },
 ): void {
-  const validated = validateMediaNoteFormForType(mediaType, form);
+  const validated = validateMediaNoteFormForType(mediaType, form, options);
   const unit = defaultProgressUnit(mediaType, form.unit);
   const total = mediaType === "anime" ? Math.max(0, numeric(form.total)) : 0;
   const progress = completedProgress(validated.status, total, form.progress, mediaType, unit);
@@ -200,8 +203,9 @@ export function buildMediaMarkdown(
   form: MediaNoteForm,
   coverPath: string,
   templateContent = "",
+  options?: { allowEmptyCompletedScore?: boolean },
 ): string {
-  const { title, status, score, completedAt } = validateMediaNoteForm(result, form);
+  const { title, status, score, completedAt } = validateMediaNoteForm(result, form, options);
 
   const total = result.mediaType === "anime"
     ? Math.max(0, numeric(form.total ?? result.total))

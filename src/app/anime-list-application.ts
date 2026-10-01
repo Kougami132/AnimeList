@@ -16,10 +16,13 @@ import { storedMediaExternalResult } from "../data/stored-media-result";
 import type { AnimeListSettings, CoverSources, ExternalMediaResult, ExternalMediaSearchPage, MediaItem, MediaNoteForm, MediaType } from "../types";
 import { MANUAL_MEDIA_PROVIDER, type MediaCoverAssetInput } from "../domain/manual-media";
 import { getScopedMarkdownFiles } from "../data/vault-scope";
+import { BangumiSyncService } from "../data/bangumi-sync/bangumi-sync-service";
+import { BangumiSyncClient } from "../data/bangumi-sync/bangumi-sync-client";
 
 export interface AnimeListApplicationCallbacks {
   openMediaFile(path: string): Promise<void>;
   refreshViews(): void;
+  saveSettings?(): Promise<void>;
 }
 
 export class AnimeListApplicationServices {
@@ -35,6 +38,7 @@ export class AnimeListApplicationServices {
   private updateService?: MediaUpdateService;
   private specialLabelService?: SpecialLabelStateService;
   private assetGarbageCollector?: MediaAssetGarbageCollector;
+  private bangumiSyncService?: BangumiSyncService;
   private readonly leasedCoverPaths = new Set<string>();
 
   constructor(
@@ -221,6 +225,21 @@ export class AnimeListApplicationServices {
       ...execution.result,
       removedCacheFiles: coverCacheRemoved + imageCacheRemoved,
     };
+  }
+
+  bangumiSync(): BangumiSyncService {
+    this.bangumiSyncService ??= new BangumiSyncService(
+      this.app,
+      this.settings,
+      new BangumiSyncClient(),
+      {
+        refreshViews: () => this.callbacks.refreshViews(),
+        saveSettings: async () => {
+          if (this.callbacks.saveSettings) await this.callbacks.saveSettings();
+        },
+      },
+    );
+    return this.bangumiSyncService;
   }
 
   releaseDownloadedCover(pathValue: string): void {

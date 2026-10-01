@@ -17,6 +17,7 @@ import { EN_LIBRARY_LAYOUT_MESSAGES } from "./library-layout";
 import { EN_LIBRARY_EXPORT_MESSAGES } from "./library-export";
 import { EN_TIMELINE_WORKSPACE_MESSAGES } from "./timeline-workspace";
 import { EN_MANUAL_MEDIA_MESSAGES } from "./manual-media";
+import { BANGUMI_SYNC_MESSAGES as EN_BANGUMI_SYNC_MESSAGES } from "./bangumi-sync";
 
 export const EN_CATALOGS = {
   core: EN_CORE_MESSAGES,
@@ -36,4 +37,5 @@ export const EN_CATALOGS = {
   "library-export": EN_LIBRARY_EXPORT_MESSAGES,
   "timeline-workspace": EN_TIMELINE_WORKSPACE_MESSAGES,
   "manual-media": EN_MANUAL_MEDIA_MESSAGES,
+  "bangumi-sync": EN_BANGUMI_SYNC_MESSAGES,
 } as const satisfies LocaleCatalogs;

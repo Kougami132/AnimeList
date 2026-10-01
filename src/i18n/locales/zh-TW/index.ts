@@ -14,6 +14,7 @@ import { IMAGE_GALLERY_MESSAGES } from "./image-gallery";
 import { LIBRARY_EXPORT_MESSAGES } from "./library-export";
 import { TIMELINE_WORKSPACE_MESSAGES } from "./timeline-workspace";
 import { MANUAL_MEDIA_MESSAGES } from "./manual-media";
+import { BANGUMI_SYNC_MESSAGES } from "./bangumi-sync";
 
 export {
   CORE_MESSAGES,
@@ -32,6 +33,7 @@ export {
   LIBRARY_EXPORT_MESSAGES,
   TIMELINE_WORKSPACE_MESSAGES,
   MANUAL_MEDIA_MESSAGES,
+  BANGUMI_SYNC_MESSAGES,
 };
 
 import { LIBRARY_LAYOUT_MESSAGES } from "./library-layout";
@@ -54,6 +56,7 @@ export const ZH_TW_CATALOGS = {
   "library-export": LIBRARY_EXPORT_MESSAGES,
   "timeline-workspace": TIMELINE_WORKSPACE_MESSAGES,
   "manual-media": MANUAL_MEDIA_MESSAGES,
+  "bangumi-sync": BANGUMI_SYNC_MESSAGES,
 } as const;
 
 export type ZhTwCatalogNamespace = keyof typeof ZH_TW_CATALOGS;

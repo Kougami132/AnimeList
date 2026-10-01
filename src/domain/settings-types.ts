@@ -6,6 +6,8 @@ import type { LibraryLayoutColumns, LibraryViewMode } from "./library-layout";
 export type { LibraryViewMode } from "./library-layout";
 import type { LanguagePreference } from "../i18n/locale";
 export type { LanguagePreference } from "../i18n/locale";
+import type { BangumiCollectionStatus } from "./bangumi-sync/types";
+export type { BangumiCollectionStatus } from "./bangumi-sync/types";
 
 export type StorageMode = "managed" | "flat";
 export type LibrarySection = "library" | "timeline" | "scores" | "images";
@@ -60,4 +62,10 @@ export interface AnimeListSettings {
   releaseTracking: ReleaseTrackingSettings;
   migrations: MigrationSettings;
   uiState: LibraryUiState;
+  bangumiAccessToken: string;
+  syncRecentDays: number;
+  syncCollectionTypes: BangumiCollectionStatus[];
+  autoSyncOnStartup: boolean;
+  autoSyncCooldownMinutes: number;
+  lastSyncTimestamp: number;
 }

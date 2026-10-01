@@ -183,11 +183,13 @@ declare module "obsidian" {
   }
 
   export interface Workspace {
+    getActiveFile(): TFile | null;
     getLeavesOfType(type: string): WorkspaceLeaf[];
     getLeaf(newLeaf?: string | boolean): WorkspaceLeaf;
     revealLeaf(leaf: WorkspaceLeaf): void;
     openLinkText(linktext: string, sourcePath: string, newLeaf?: boolean): Promise<void>;
     on(name: "editor-menu", callback: (menu: Menu, editor: Editor, info: MarkdownFileInfo) => unknown): EventRef;
+    on(name: "file-menu", callback: (menu: Menu, file: TAbstractFile, source: string) => unknown): EventRef;
   }
 
   export interface MetadataCache {

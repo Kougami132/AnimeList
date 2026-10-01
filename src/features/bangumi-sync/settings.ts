@@ -14,16 +14,16 @@ export function createBangumiSyncSettingsSection(
 ): FeatureSettingsSection {
   return {
     page: "features",
-    heading: "Bangumi synchronization",
-    description: "Synchronize anime watching progress, status, and ratings with Bangumi (bgm.tv).",
+    heading: "Bangumi 同步",
+    description: "与 Bangumi (bgm.tv) 同步动画在看进度、观看状态与评分。",
     definitions: [
       {
-        name: "Personal Access Token",
-        desc: "Enter your Bangumi Personal Access Token (PAT). Required for reading and updating your private collections.",
+        name: "个人访问令牌 (PAT)",
+        desc: "输入您的 Bangumi 个人访问令牌 (Personal Access Token)。用于读取和更新您的私有收藏。",
         render: (setting: Setting) => {
           setting.addText((input) => {
             input.inputEl.type = "password";
-            input.setPlaceholder("Enter personal access token");
+            input.setPlaceholder("输入个人访问令牌");
             input.setValue(host.settings.bangumiAccessToken);
             input.onChange(async (val) => {
               host.settings.bangumiAccessToken = val.trim();
@@ -33,24 +33,24 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
-        name: "Test connection",
-        desc: "Validate your Personal Access Token with the Bangumi API.",
+        name: "测试连接",
+        desc: "使用 Bangumi API 验证您的个人访问令牌有效性。",
         render: (setting: Setting) => {
           const feedbackContainer = setting.settingEl.createDiv({ cls: "al-bangumi-feedback" });
 
           setting.addButton((button) => {
-            button.setButtonText("Test connection");
+            button.setButtonText("测试连接");
             button.onClick(async () => {
               const token = host.settings.bangumiAccessToken.trim();
               if (!token) {
                 feedbackContainer.empty();
                 const errEl = feedbackContainer.createDiv({ cls: "al-bangumi-error" });
-                errEl.textContent = "Please enter a personal access token first.";
+                errEl.textContent = "请先输入个人访问令牌。";
                 return;
               }
 
               button.buttonEl.disabled = true;
-              button.setButtonText("Testing...");
+              button.setButtonText("正在测试…");
               feedbackContainer.empty();
 
               try {
@@ -74,23 +74,23 @@ export function createBangumiSyncSettingsSection(
                 userLine.textContent = `@${profile.username} (ID: ${profile.id})`;
 
                 const successBadge = feedbackContainer.createDiv({ cls: "al-bangumi-status-badge is-success" });
-                successBadge.textContent = "Connected";
+                successBadge.textContent = "已连接";
               } catch (error) {
                 feedbackContainer.empty();
                 feedbackContainer.className = "al-bangumi-feedback";
                 const errEl = feedbackContainer.createDiv({ cls: "al-bangumi-error" });
-                errEl.textContent = error instanceof Error ? error.message : "Failed to connect to Bangumi.";
+                errEl.textContent = error instanceof Error ? error.message : "连接 Bangumi 失败。";
               } finally {
                 button.buttonEl.disabled = false;
-                button.setButtonText("Test connection");
+                button.setButtonText("测试连接");
               }
             });
           });
         },
       },
       {
-        name: "Sync window (days)",
-        desc: "Rolling interval in days for fetching recently updated collections (default 30).",
+        name: "同步时间窗口 (天)",
+        desc: "获取近期更新收藏的滚动时间范围天数（默认 30 天）。",
         render: (setting: Setting) => {
           setting.addText((input) => {
             input.setPlaceholder("30");
@@ -104,16 +104,16 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
-        name: "Collection statuses",
-        desc: "Select which Bangumi collection statuses to include in synchronization.",
+        name: "同步收藏状态",
+        desc: "选择参与同步的 Bangumi 收藏状态分类。",
         render: (setting: Setting) => {
           const container = setting.settingEl.createDiv({ cls: "al-bangumi-status-toggles" });
           const statusLabels: Record<BangumiCollectionStatus, string> = {
-            watching: "Watching (在看)",
-            completed: "Completed (看过)",
-            wishlist: "Wishlist (想看)",
-            on_hold: "On Hold (搁置)",
-            dropped: "Dropped (抛弃)",
+            watching: "在看 (Watching)",
+            completed: "看过 (Completed)",
+            wishlist: "想看 (Wishlist)",
+            on_hold: "搁置 (On Hold)",
+            dropped: "抛弃 (Dropped)",
           };
 
           for (const status of BANGUMI_COLLECTION_STATUSES) {
@@ -136,8 +136,8 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
-        name: "Auto-sync on startup",
-        desc: "Automatically sync existing anime notes with Bangumi in the background when Obsidian starts.",
+        name: "启动时自动同步",
+        desc: "当 Obsidian 启动时，自动在后台静默同步仓库中已存在的动画笔记。",
         render: (setting: Setting) => {
           setting.addToggle((toggle) => {
             toggle.setValue(host.settings.autoSyncOnStartup);
@@ -149,8 +149,8 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
-        name: "Auto-sync cooldown (minutes)",
-        desc: "Minimum minutes between startup background sync runs (default 30).",
+        name: "自动同步冷却时间 (分钟)",
+        desc: "启动后台自动同步的最短间隔分钟数（默认 30 分钟）。",
         render: (setting: Setting) => {
           setting.addText((input) => {
             input.setPlaceholder("30");
@@ -164,11 +164,11 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
-        name: "Batch sync recent anime",
-        desc: "Fetch recent collection updates from Bangumi and preview changes.",
+        name: "批量同步近期动画",
+        desc: "从 Bangumi 获取近期更新的收藏，并在差异预览窗口中检视后同步。",
         render: (setting: Setting) => {
           setting.addButton((button) => {
-            button.setButtonText("Batch sync now");
+            button.setButtonText("立即批量同步");
             button.onClick(() => {
               onBatchSync?.();
             });

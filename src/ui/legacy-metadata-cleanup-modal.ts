@@ -88,20 +88,20 @@ export class LegacyMetadataCleanupModal extends Modal {
     this.contentEl.empty();
     this.contentEl.createEl("p", {
       cls: "al-modal-hint",
-      text: "Review this legacy metadata update before the plugin writes any notes.",
+      text: "在插件修改任何笔记之前，请仔细阅读本次旧版元数据更新说明。",
     });
     const rules = this.contentEl.createEl("ul", { cls: "al-version-cleanup-rules" });
-    rules.createEl("li", { text: "Scan media notes in the configured library folders." });
-    rules.createEl("li", { text: "Normalize legacy genre, studio, tag, season, and classification metadata." });
-    rules.createEl("li", { text: "When required, query current provider metadata to repair incomplete legacy fields." });
-    rules.createEl("li", { text: "Preserve unrelated frontmatter and note body content." });
-    rules.createEl("li", { text: "This operation can modify many notes; Cancel makes no changes." });
+    rules.createEl("li", { text: "扫描已配置的媒体库文件夹中的媒体笔记。" });
+    rules.createEl("li", { text: "规范化旧版的类型、制作公司、标签、季度与分类元数据。" });
+    rules.createEl("li", { text: "在必要时，查询最新的提供商元数据以修复不完整的旧版字段。" });
+    rules.createEl("li", { text: "完整保留不相关的 frontmatter 属性与笔记正文内容。" });
+    rules.createEl("li", { text: "此操作可能会批量修改较多笔记；点击取消不会做出任何更改。" });
 
     const footer = this.contentEl.createDiv({ cls: "al-modal-actions" });
-    const cancel = footer.createEl("button", { text: "Cancel" });
+    const cancel = footer.createEl("button", { text: "取消" });
     cancel.type = "button";
     cancel.addEventListener("click", () => this.close());
-    const confirm = footer.createEl("button", { cls: "mod-cta", text: "Confirm and run" });
+    const confirm = footer.createEl("button", { cls: "mod-cta", text: "确认并执行" });
     confirm.type = "button";
     confirm.addEventListener("click", () => this.runCleanup());
   }

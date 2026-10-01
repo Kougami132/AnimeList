@@ -18,6 +18,8 @@ import { MEDIA_UI_LABELS, mediaUnitLabel } from "../../ui/ui-helpers";
 import { specialLabelName } from "../masterpiece/text";
 import { timelineEntryCopy } from "../progress/timeline-entry-text";
 import { progressUnitLabel } from "../progress/text";
+import { LIBRARY_EXPORT_MESSAGES as ZH_TW_LIBRARY_EXPORT_MESSAGES } from "../../i18n/locales/zh-TW/library-export";
+import { LIBRARY_EXPORT_MESSAGES as ZH_CN_LIBRARY_EXPORT_MESSAGES } from "../../i18n/locales/zh-CN/library-export";
 import { libraryExportText } from "./text";
 
 const VARIABLE_TEXT_KEYS: Readonly<Record<LibraryTextTemplateVariableId,
@@ -60,15 +62,30 @@ function templateCatalog(specialLabelMode: SpecialLabelMode = "favorite"): Libra
   ])) as Record<LibraryTextTemplateVariableId, string>;
   names.favorite = specialLabelName(specialLabelMode);
 
+  const aliases: Partial<Record<LibraryTextTemplateVariableId, string[]>> = {};
+  for (const id of LIBRARY_TEXT_TEMPLATE_VARIABLE_IDS) {
+    const list = [
+      ZH_TW_LIBRARY_EXPORT_MESSAGES[VARIABLE_TEXT_KEYS[id]],
+      ZH_CN_LIBRARY_EXPORT_MESSAGES[VARIABLE_TEXT_KEYS[id]],
+    ].filter((value) => Boolean(value) && value !== names[id]);
+    if (list.length > 0) aliases[id] = [...new Set(list)];
+  }
+
   const specialLabelAliases = [
     libraryExportText("templateVarFavorite"),
+    ZH_TW_LIBRARY_EXPORT_MESSAGES.templateVarFavorite,
+    ZH_CN_LIBRARY_EXPORT_MESSAGES.templateVarFavorite,
+    "最愛",
+    "最爱",
     specialLabelName("favorite"),
     specialLabelName("masterpiece"),
+    "masterpiece",
   ].filter((value, index, values) => value !== names.favorite && values.indexOf(value) === index);
+  aliases.favorite = specialLabelAliases;
 
   return {
     names,
-    aliases: { favorite: specialLabelAliases },
+    aliases,
   };
 }
 

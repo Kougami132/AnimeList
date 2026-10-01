@@ -8,7 +8,7 @@ interface CatalogState {
 }
 
 const CATALOGS = new Map<string, CatalogState>();
-let activeLocale: LocaleCode = "zh-TW";
+let activeLocale: LocaleCode = "zh-CN";
 
 export function interpolateText(template: string, variables: TextVariables = {}): string {
   return template.replace(/\{([A-Za-z0-9_.-]+)\}/g, (match, name: string) => (
@@ -17,7 +17,7 @@ export function interpolateText(template: string, variables: TextVariables = {})
 }
 
 export function setActiveLocale(locale: LocaleCode): void {
-  activeLocale = locale.trim() || "zh-TW";
+  activeLocale = locale.trim() || "zh-CN";
 }
 
 export function getActiveLocale(): LocaleCode {
@@ -54,7 +54,7 @@ export interface TextCatalog<T extends TextMessages> {
 export function defineTextCatalog<const T extends TextMessages>(
   namespace: string,
   defaultMessages: T,
-  defaultLocale: LocaleCode = "zh-TW",
+  defaultLocale: LocaleCode = "zh-CN",
 ): TextCatalog<T> {
   if (CATALOGS.has(namespace)) throw new Error(`Duplicate text catalog namespace: ${namespace}`);
   const state: CatalogState = {
@@ -79,5 +79,5 @@ export function defineTextCatalog<const T extends TextMessages>(
 }
 
 export function resetLocaleForTests(): void {
-  activeLocale = "zh-TW";
+  activeLocale = "zh-CN";
 }

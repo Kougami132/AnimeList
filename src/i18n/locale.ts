@@ -1,14 +1,15 @@
-export const SUPPORTED_LOCALES = ["zh-TW", "en", "ja", "ko"] as const;
+export const SUPPORTED_LOCALES = ["zh-CN", "zh-TW", "en", "ja", "ko"] as const;
 export type SupportedLocale = typeof SUPPORTED_LOCALES[number];
 export type LanguagePreference = SupportedLocale | "system";
 
-export const DEFAULT_INTERFACE_LANGUAGE: LanguagePreference = "zh-TW";
+export const DEFAULT_INTERFACE_LANGUAGE: LanguagePreference = "zh-CN";
 
 export function normalizeSupportedLocale(value: unknown): SupportedLocale | null {
   if (typeof value !== "string") return null;
   const locale = value.trim().replaceAll("_", "-").toLowerCase();
   if (!locale) return null;
-  if (locale === "zh" || locale.startsWith("zh-")) return "zh-TW";
+  if (locale === "zh-tw" || locale === "zh-hk" || locale.startsWith("zh-hant")) return "zh-TW";
+  if (locale === "zh" || locale.startsWith("zh-")) return "zh-CN";
   if (locale === "en" || locale.startsWith("en-")) return "en";
   if (locale === "ja" || locale.startsWith("ja-")) return "ja";
   if (locale === "ko" || locale.startsWith("ko-")) return "ko";
@@ -25,5 +26,5 @@ export function resolveInterfaceLocale(
   systemLocale?: unknown,
 ): SupportedLocale {
   if (preference !== "system") return preference;
-  return normalizeSupportedLocale(systemLocale) ?? "zh-TW";
+  return normalizeSupportedLocale(systemLocale) ?? "zh-CN";
 }

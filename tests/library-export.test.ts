@@ -137,11 +137,11 @@ describe("library export", () => {
       "({$作品類型}) {$作品名稱} : {$完成時間} | {$評分}",
     );
     assert.equal(text, [
-      "(漫畫) Serial — 第 1 卷 : 2026-01-03 | 9",
+      "(漫画) Serial — 第 1 卷 : 2026-01-03 | 9",
       "",
-      "(漫畫) Serial — 第 2 卷 : 2026-01-12 | 9",
+      "(漫画) Serial — 第 2 卷 : 2026-01-12 | 9",
       "",
-      "(動畫) Anime Done : 2026-02-10 | 8.5",
+      "(动画) Anime Done : 2026-02-10 | 8.5",
       "",
     ].join("\n"));
   });
@@ -166,9 +166,9 @@ describe("library export", () => {
     assert.equal(formatLibraryTextExport(rows, favoriteTemplate, favoriteCompilation, "favorite"), [
       "Plain |",
       "",
-      "Favorite Work | 最愛",
+      "Favorite Work | 最爱",
       "",
-      "Masterpiece Work | 最愛",
+      "Masterpiece Work | 最爱",
       "",
     ].join("\n"));
 

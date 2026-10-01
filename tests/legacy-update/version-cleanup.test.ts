@@ -166,18 +166,18 @@ describe("legacy update: duplicate default note covers", () => {
     const section = createVersionCleanupSettingsSection(host, () => {}, () => {});
     const legacy = createLegacyMetadataSettingsSection(host, () => {});
     assert.equal(section.page, "updates-cleanup");
-    assert.equal(section.heading, "Version updates");
+    assert.equal(section.heading, "版本更新兼容维护");
     assert.deepEqual(section.definitions.map((definition) => definition.name), [
-      "Sync note filenames with titles",
-      "Remove duplicate note covers",
-      "Upgrade legacy metadata",
+      "同步笔记文件名与作品标题",
+      "清理笔记内重复嵌入封面",
+      "升级旧版元数据",
     ]);
     const filenameDescription = String(section.definitions[0].desc);
-    assert.match(filenameDescription, /filenames changed manually/);
-    assert.match(filenameDescription, /remain valid in the Library/);
-    assert.match(filenameDescription, /same folder/);
-    assert.match(filenameDescription, /frontmatter are not rewritten/);
-    assert.equal(legacy.heading, "Legacy metadata cleanup");
+    assert.match(filenameDescription, /手动重命名/);
+    assert.match(filenameDescription, /依然有效/);
+    assert.match(filenameDescription, /原文件夹/);
+    assert.match(filenameDescription, /不会被重写/);
+    assert.equal(legacy.heading, "旧版元数据清理");
   });
 });
 

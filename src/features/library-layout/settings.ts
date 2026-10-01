@@ -7,7 +7,6 @@ import {
   normalizeLibraryLayoutColumns,
   type LibraryColumnView,
 } from "../../domain/library-layout";
-import { libraryLayoutText } from "./text";
 
 interface LibraryLayoutSlider {
   setLimits(min: number | null, max: number | null, step: number): this;
@@ -53,20 +52,20 @@ function createColumnDefinition(
 export function createLibraryLayoutSettingsSection(host: AnimeListFeatureHost): FeatureSettingsSection {
   return {
     page: "general",
-    heading: libraryLayoutText("settingsHeading"),
-    description: libraryLayoutText("settingsDescription"),
+    heading: "媒体库排版",
+    description: "设置卡片与缩略图模式每行显示的作品数；媒体库内的缩放条将同步修改相同设置。",
     definitions: [
       createColumnDefinition(
         host,
         "grid",
-        libraryLayoutText("settingsCardColumnsName"),
-        libraryLayoutText("settingsCardColumnsDesc"),
+        "卡片视图每行数量",
+        "设置卡片视图每行显示的作品数量（1–6）。",
       ),
       createColumnDefinition(
         host,
         "poster",
-        libraryLayoutText("settingsPosterColumnsName"),
-        libraryLayoutText("settingsPosterColumnsDesc"),
+        "缩略图视图每行数量",
+        "设置缩略图视图每行显示的作品数量（1–6）。",
       ),
     ],
   };

@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { MASTERPIECE_MESSAGES } from "../../i18n/locales/zh-TW/masterpiece";
+import { MASTERPIECE_MESSAGES } from "../../i18n/locales/zh-CN/masterpiece";
 import type { SpecialLabelMode } from "../../domain/masterpiece-labels";
 
 const TEXT = MASTERPIECE_MESSAGES;

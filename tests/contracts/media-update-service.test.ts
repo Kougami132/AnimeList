@@ -190,7 +190,7 @@ describe("media update service", () => {
     await assert.rejects(
       new MediaUpdateService(app, { refreshViews: () => { refreshes += 1; } })
         .update(file, "anime", form),
-      /請輸入作品名稱/,
+      /请输入作品名称|請輸入作品名稱/,
     );
     assert.equal(refreshes, 0);
     assert.deepEqual(frontmatter, { media_type: "anime", custom: "keep" });

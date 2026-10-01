@@ -8,6 +8,7 @@ export const KO_CORE_MESSAGES = {
     "settings.language.name": "표시 언어",
     "settings.language.desc": "AnimeList 인터페이스에 사용할 언어를 변경합니다. 노트, 태그, 작품 데이터는 수정하지 않습니다.",
     "settings.language.system": "Obsidian 언어 따르기",
+    "settings.language.zhCN": "간체 중국어",
     "settings.language.zhTW": "繁體中文",
     "settings.language.en": "English",
     "settings.language.ja": "日本語",

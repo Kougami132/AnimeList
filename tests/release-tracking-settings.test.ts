@@ -15,14 +15,14 @@ describe("release tracking settings", () => {
     } as unknown as AnimeListFeatureHost;
     const section = createReleaseTrackingSettingsSection(host);
 
-    assert.equal(section.heading, "Latest release tracking");
+    assert.equal(section.heading, "连载追更");
     assert.equal(settings.releaseTracking.enabled, false);
     assert.equal(settings.releaseTracking.automatic, false);
     assert.deepEqual(section.definitions.map((definition) => definition.name), [
-      "Fetch latest release information",
-      "Check automatically once per day",
-      "維護追蹤作品",
-      "Check now",
+      "获取最新连载与出版信息",
+      "每日自动检查更新",
+      "管理追踪作品",
+      "立即检查",
     ]);
     for (const definition of section.definitions) {
       assert.equal(definition.visible?.() ?? true, true);

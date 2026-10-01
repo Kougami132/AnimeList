@@ -8,6 +8,7 @@ export const JA_CORE_MESSAGES = {
     "settings.language.name": "表示言語",
     "settings.language.desc": "AnimeList のインターフェース言語を変更します。ノート、タグ、作品データは変更されません。",
     "settings.language.system": "Obsidian に合わせる",
+    "settings.language.zhCN": "簡体中文",
     "settings.language.zhTW": "繁體中文",
     "settings.language.en": "English",
     "settings.language.ja": "日本語",

@@ -8,6 +8,7 @@ export const EN_CORE_MESSAGES = {
     "settings.language.name": "Display language",
     "settings.language.desc": "Choose the language used by AnimeList views, dialogs, and notices. The Settings page stays in English.",
     "settings.language.system": "Follow Obsidian",
+    "settings.language.zhCN": "Simplified Chinese",
     "settings.language.zhTW": "Traditional Chinese",
     "settings.language.en": "English",
     "settings.language.ja": "Japanese",

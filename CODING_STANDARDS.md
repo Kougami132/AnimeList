@@ -65,8 +65,8 @@
 集中管理全部用户端展示文本：
 
 - **Centralized text catalogs**: 所有展示文本必须注册在 `src/i18n/catalog.ts` 的类型化命名空间中，通过 `uiText()` 或特性 Facade 函数读取。
-- **Four-locale parity**: 新增任何展示文案键，必须同步在 `src/i18n/locales/` 下提供 4 种语言翻译：`zh-TW`（繁体中文，默认基准）、`en`（英文）、`ja`（日文）、`ko`（韩文）。
-- **English settings page**: 设置页面（Settings Tab）各模块文案必须统一保持英文，不随语言切换而变动。
+- **Supported locale parity**: 新增任何展示文案键，必须同步在 `src/i18n/locales/` 下提供支持语言翻译：`zh-CN`（简体中文，默认基准）、`zh-TW`（繁体中文）、`en`（英文）、`ja`（日文）、`ko`（韩文）。
+- **Simplified Chinese settings page**: 设置页面（Settings Tab）各模块文案统一采用简体中文编写，不随界面语言切换而变动；主界面与各类弹窗仍通过 i18n 目录驱动。
 - **Semantic test selectors**: DOM 测试或状态选择必须基于 Semantic Class、`data-*` 属性或角色定位；严禁依赖本地化翻译后的字符串做元素查找。
 - **English internal baseline**: 源码、标识符、注释、Commit 信息及技术文档统一使用英文编写。
 

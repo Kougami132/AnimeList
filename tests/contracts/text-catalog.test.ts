@@ -47,8 +47,8 @@ describe("user-visible text catalog compatibility", () => {
 
   it("interpolates named variables without deleting unknown future placeholders", () => {
     assert.equal(
-      uiText("library.resultMeta", { shown: 2, total: 8, genre: " · 戀愛" }),
-      "顯示 2，共 8 部 · 戀愛",
+      uiText("library.resultMeta", { shown: 2, total: 8, genre: " · 恋爱" }),
+      "显示 2，共 8 部 · 恋爱",
     );
     assert.equal(
       progressUnitFeatureText("timelineEntryTitle", { title: "作品", label: 3, unit: "卷" }),
@@ -62,10 +62,10 @@ describe("user-visible text catalog compatibility", () => {
   });
 
   it("keeps feature text helpers stable for later locale replacement", () => {
-    assert.equal(ratingFeatureText("adjusted", { original: 8.2, rounded: 8 }), "評分 8.2 不符合 0.5 分級距，已四捨五入為 8。");
-    assert.equal(searchFeatureText("duplicate.warning.open"), "開啟既有筆記");
-    assert.equal(masterpieceFeatureText("modal.save"), "儲存");
-    assert.equal(scoreDashboardText.selected(3), "已選 3 部");
+    assert.equal(ratingFeatureText("adjusted", { original: 8.2, rounded: 8 }), "评分 8.2 不符合 0.5 分阶梯，已四舍五入为 8。");
+    assert.equal(searchFeatureText("duplicate.warning.open"), "打开既有笔记");
+    assert.equal(masterpieceFeatureText("modal.save"), "保存");
+    assert.equal(scoreDashboardText.selected(3), "已选 3 部");
   });
 
 
@@ -73,7 +73,7 @@ describe("user-visible text catalog compatibility", () => {
     const placeholderNames = (value: string): string[] => [...value.matchAll(/\{([A-Za-z0-9_.-]+)\}/g)]
       .map((match) => match[1] ?? "")
       .sort();
-    const reference = BUNDLED_LOCALE_CATALOGS["zh-TW"];
+    const reference = BUNDLED_LOCALE_CATALOGS["zh-CN"];
     for (const [locale, catalogs] of Object.entries(BUNDLED_LOCALE_CATALOGS)) {
       for (const namespace of Object.keys(reference) as Array<keyof typeof reference>) {
         const baseMessages = reference[namespace] as Record<string, string>;
@@ -93,7 +93,8 @@ describe("user-visible text catalog compatibility", () => {
   it("switches all catalog namespaces between bundled interface languages", () => {
     registerBundledLocales();
     const cases = [
-      ["zh-TW", "收藏庫", "儲存", "Tags"],
+      ["zh-CN", "媒体库", "保存", "作品标签"],
+      ["zh-TW", "收藏庫", "儲存", "標籤"],
       ["en", "Library", "Save", "Tags"],
       ["ja", "ライブラリ", "保存", "タグ"],
       ["ko", "라이브러리", "저장", "태그"],
@@ -114,12 +115,18 @@ describe("user-visible text catalog compatibility", () => {
   });
 
   it("normalizes explicit and system locale preferences deterministically", () => {
+    assert.equal(normalizeSupportedLocale("zh-CN"), "zh-CN");
+    assert.equal(normalizeSupportedLocale("zh_CN"), "zh-CN");
+    assert.equal(normalizeSupportedLocale("zh-Hans"), "zh-CN");
+    assert.equal(normalizeSupportedLocale("zh"), "zh-CN");
     assert.equal(normalizeSupportedLocale("zh-Hant-TW"), "zh-TW");
+    assert.equal(normalizeSupportedLocale("zh-TW"), "zh-TW");
+    assert.equal(normalizeSupportedLocale("zh-HK"), "zh-TW");
     assert.equal(normalizeSupportedLocale("en-US"), "en");
     assert.equal(normalizeSupportedLocale("ja_JP"), "ja");
     assert.equal(normalizeSupportedLocale("ko-KR"), "ko");
     assert.equal(resolveInterfaceLocale("system", "ja-JP"), "ja");
-    assert.equal(resolveInterfaceLocale("system", "fr-FR"), "zh-TW");
+    assert.equal(resolveInterfaceLocale("system", "fr-FR"), "zh-CN");
     assert.equal(resolveInterfaceLocale("en", "ja-JP"), "en");
   });
 

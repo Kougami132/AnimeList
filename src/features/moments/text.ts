@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { MOMENTS_MESSAGES } from "../../i18n/locales/zh-TW/moments";
+import { MOMENTS_MESSAGES } from "../../i18n/locales/zh-CN/moments";
 
 export const MOMENTS_TEXT = MOMENTS_MESSAGES;
 const CATALOG = defineTextCatalog("moments", MOMENTS_TEXT);

@@ -25,9 +25,9 @@ test("serial cover migration report summarizes counts and preserves detail order
   });
 
   assert.equal(output, [
-    "Scanned 5 entries. Loaded 2, not found 1, failed 1, skipped 1.",
-    "LOADED · Example title · 3 · Cover loaded",
-    "NOT FOUND · Other title · 7 · No confident match",
+    "已扫描 5 个条目：成功获取 2，未找到 1，失败 1，跳过 1。",
+    "已获取 · Example title · 3 · Cover loaded",
+    "未找到 · Other title · 7 · No confident match",
   ].join("\n"));
 });
 
@@ -39,5 +39,5 @@ test("serial cover migration report remains concise when there are no details", 
     failed: 0,
     skipped: 0,
     details: [],
-  }), "Scanned 0 entries. Loaded 0, not found 0, failed 0, skipped 0.");
+  }), "已扫描 0 个条目：成功获取 0，未找到 0，失败 0，跳过 0。");
 });

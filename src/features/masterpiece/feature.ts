@@ -318,14 +318,14 @@ export const masterpieceFeature = defineFeature<AnimeListFeatureHost>({
     kind: "settings",
     sections(plugin) {
       return {
-        heading: masterpieceFeatureText("settings.heading"),
+        heading: "特殊标签模式",
         definitions: [{
-          name: masterpieceFeatureText("settings.mode.name"),
-          desc: masterpieceFeatureText("settings.mode.desc"),
+          name: "收藏标籤模式",
+          desc: "选择星标代表普通收藏（Favorite）还是可复用的神作分级（Masterpiece）。",
           render: (setting) => {
             setting.addDropdown((dropdown) => dropdown
-              .addOption("favorite", masterpieceFeatureText("settings.mode.favorite"))
-              .addOption("masterpiece", masterpieceFeatureText("settings.mode.masterpiece"))
+              .addOption("favorite", "普通收藏")
+              .addOption("masterpiece", "神作分级")
               .setValue(modeOf(plugin))
               .onChange(async (value: string) => {
                 plugin.settings.specialLabelMode = normalizeSpecialLabelMode(value);

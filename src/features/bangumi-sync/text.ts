@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { BANGUMI_SYNC_MESSAGES } from "../../i18n/locales/zh-TW/bangumi-sync";
+import { BANGUMI_SYNC_MESSAGES } from "../../i18n/locales/zh-CN/bangumi-sync";
 
 export const BANGUMI_SYNC_TEXT = BANGUMI_SYNC_MESSAGES;
 

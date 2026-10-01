@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { MANUAL_MEDIA_MESSAGES } from "../../i18n/locales/zh-TW/manual-media";
+import { MANUAL_MEDIA_MESSAGES } from "../../i18n/locales/zh-CN/manual-media";
 
 const CATALOG = defineTextCatalog("manual-media", MANUAL_MEDIA_MESSAGES);
 export const MANUAL_MEDIA_TEXT = MANUAL_MEDIA_MESSAGES;

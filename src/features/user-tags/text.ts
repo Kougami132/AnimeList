@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { USER_TAG_MESSAGES } from "../../i18n/locales/zh-TW";
+import { USER_TAG_MESSAGES } from "../../i18n/locales/zh-CN";
 
 const CATALOG = defineTextCatalog("user-tag", USER_TAG_MESSAGES);
 export type UserTagTextKey = keyof typeof USER_TAG_MESSAGES;

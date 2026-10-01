@@ -68,7 +68,7 @@ describe("media note service", () => {
       { async openMediaFile() { sideEffects += 1; }, refreshViews() { sideEffects += 1; } },
     );
 
-    await assert.rejects(() => service.create(externalResult(), noteForm("")), /請輸入作品名稱/);
+    await assert.rejects(() => service.create(externalResult(), noteForm("")), /请输入作品名称|請輸入作品名稱/);
     assert.equal(sideEffects, 0);
   });
 

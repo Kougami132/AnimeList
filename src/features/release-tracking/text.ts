@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { RELEASE_TRACKING_MESSAGES } from "../../i18n/locales/zh-TW/release-tracking";
+import { RELEASE_TRACKING_MESSAGES } from "../../i18n/locales/zh-CN/release-tracking";
 
 export const RELEASE_TRACKING_TEXT = RELEASE_TRACKING_MESSAGES;
 

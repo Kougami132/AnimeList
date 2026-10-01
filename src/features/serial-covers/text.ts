@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { SERIAL_COVER_MESSAGES } from "../../i18n/locales/zh-TW/serial-cover";
+import { SERIAL_COVER_MESSAGES } from "../../i18n/locales/zh-CN/serial-cover";
 
 export const SERIAL_COVER_TEXT = SERIAL_COVER_MESSAGES;
 

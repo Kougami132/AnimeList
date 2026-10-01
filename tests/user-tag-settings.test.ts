@@ -51,14 +51,14 @@ describe("user tag settings feature", () => {
     assert.equal(saves, 1);
   });
 
-  it("keeps the settings surface and tag manager copy in English", () => {
+  it("renders the settings surface and tag manager copy in Simplified Chinese", () => {
     const section = createUserTagSettingsSection({} as any);
-    assert.equal(section.heading, "Tags");
-    assert.equal(section.description, "Manage reusable work tags without crowding the settings page.");
-    assert.equal(section.definitions[0].name, "Tag manager");
-    assert.equal(userTagText("settings.manage"), "Manage tags…");
-    assert.equal(userTagText("manager.usedBy", { count: 3 }), "Used by 3 works");
-    assert.doesNotMatch([
+    assert.equal(section.heading, "作品标签");
+    assert.equal(section.description, "集中管理可复用的作品标签，保持设置页面清爽。");
+    assert.equal(section.definitions[0].name, "标签管理器");
+    assert.equal(userTagText("settings.manage"), "管理标签…");
+    assert.equal(userTagText("manager.usedBy", { count: 3 }), "被 3 部作品使用");
+    assert.match([
       userTagText("settings.heading"),
       userTagText("settings.description"),
       userTagText("settings.name"),
@@ -69,6 +69,6 @@ describe("user tag settings feature", () => {
       userTagText("manager.rename"),
       userTagText("manager.delete"),
       userTagText("manager.cancel"),
-    ].join(" "), /[^\x00-\x7F…←×]/);
+    ].join(" "), /[\u3400-\u9fff]/);
   });
 });

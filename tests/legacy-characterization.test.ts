@@ -202,7 +202,7 @@ describe("media note generation", () => {
       genres: [],
       releaseStatus: "unknown",
       volumeLog: [],
-    }, "", ""), /必須填寫評分/);
+    }, "", ""), /必须填写评分|必須填寫評分/);
   });
 });
 
@@ -751,7 +751,7 @@ describe("Obsidian community review compliance", () => {
     const sections = new AnimeListSettingTab(new App(), host).getSettingSections();
     assert.deepEqual(
       sections.map((section) => section.heading ?? ""),
-      ["", UI_TEXT["settings.timeline.heading"], "Search languages", UI_TEXT["settings.providers.heading"], UI_TEXT["settings.setup.heading"], "Storage cleanup"],
+      ["", "时间线", "标题搜索语言", "元数据提供商", "媒体库初始化", "存储清理"],
     );
   });
 

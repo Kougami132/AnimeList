@@ -93,7 +93,7 @@ describe("special label state service", () => {
 
     await assert.rejects(
       service.update("missing.md", { favorite: true, masterpieceLabels: ["visual"] }),
-      /找不到作品筆記|Media note/i,
+      /找不到作品[筆笔][記记]|Media note/i,
     );
     assert.equal(persisted, false);
     assert.equal(refreshed, false);

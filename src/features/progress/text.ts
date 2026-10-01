@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { PROGRESS_UNIT_MESSAGES } from "../../i18n/locales/zh-TW/progress-unit";
+import { PROGRESS_UNIT_MESSAGES } from "../../i18n/locales/zh-CN/progress-unit";
 import type { ReadingProgressUnit } from "../../domain/progress-units";
 
 const MESSAGES = PROGRESS_UNIT_MESSAGES;

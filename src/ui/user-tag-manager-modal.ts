@@ -134,7 +134,7 @@ export class UserTagManagerModal extends Modal {
     const counts = this.service.usageCounts();
     const visible = this.catalog
       .filter((tag) => !this.query || tag.toLocaleLowerCase().includes(this.query))
-      .sort((left, right) => left.localeCompare(right, "zh-Hant"));
+      .sort((left, right) => left.localeCompare(right, "zh-CN"));
 
     if (!visible.length) {
       list.appendChild(makeEl(

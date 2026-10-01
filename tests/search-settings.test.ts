@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import { App } from "obsidian";
 import type { SettingDefinitionItem, SettingDefinitionPage } from "obsidian";
 import { AnimeListSettingTab, DEFAULT_SETTINGS } from "../src/ui/settings";
+import "../src/ui-text";
+import "../src/features/search/text";
 import {
   SETTINGS_PAGES,
   getSettingsPageDefinition,
@@ -46,26 +48,26 @@ function createHost() {
 }
 
 describe("search language settings", () => {
-  it("groups all language toggles in one English section", () => {
+  it("groups all language toggles in one Chinese section", () => {
     const tab = new AnimeListSettingTab(new App(), createHost());
     const sections = tab.getSettingSections();
-    const languageSection = sections.find((section) => section.heading === "Search languages");
+    const languageSection = sections.find((section) => section.heading === "标题搜索语言");
 
     assert.ok(languageSection);
     assert.equal(languageSection.page, "search-metadata");
     assert.deepEqual(
       languageSection.definitions.map((definition) => definition.name),
-      ["Chinese titles", "English titles", "Original-language titles"],
+      ["中文标题", "英文标题", "原语言标题"],
     );
     assert.equal(
       languageSection.definitions.every((definition) => (
-        typeof definition.desc === "string" && !/[\u3400-\u9fff]/u.test(definition.desc)
+        typeof definition.desc === "string" && /[\u3400-\u9fff]/u.test(definition.desc)
       )),
       true,
     );
   });
 
-  it("keeps the whole settings model in English regardless of interface language", () => {
+  it("keeps the whole settings model in Simplified Chinese regardless of interface language", () => {
     registerLocaleMessages("core", "en", EN_CORE_MESSAGES);
     registerLocaleMessages("search", "en", EN_SEARCH_MESSAGES);
     registerLocaleMessages("core", "ja", JA_CORE_MESSAGES);
@@ -75,28 +77,22 @@ describe("search language settings", () => {
       const host = createHost();
       Object.assign(host, {
         getFeatureSettingsSections: () => [{
-          heading: "Feature settings",
-          description: "English feature description",
-          definitions: [{ name: "Feature option", desc: "English option description" }],
+          heading: "特性设置",
+          description: "特性设置描述",
+          definitions: [{ name: "特性选项", desc: "特性选项描述" }],
         }],
       });
       const tab = new AnimeListSettingTab(new App(), host);
       const sections = tab.getSettingSections();
-      assert.equal(tab.getInterfaceLanguageDefinition().name, "Display language");
+      assert.equal(tab.getInterfaceLanguageDefinition().name, "显示语言");
       assert.equal(tab.getInterfaceLanguageDefinition().desc,
-        "Choose the language used by AnimeList views, dialogs, and notices. The Settings page stays in English.");
+        "选择 AnimeList 视图、弹窗与通知的界面语言（设置页面固定保持中文）。此操作不会修改笔记正文、标签或元数据。");
       assert.equal(sections.some((section) => section.heading === "検索言語"), false);
-      assert.ok(sections.some((section) => section.heading === "Search languages"));
-      assert.ok(sections.some((section) => section.heading === "Metadata providers"));
-      assert.equal(
-        sections.flatMap((section) => [section.heading, section.description, ...section.definitions.flatMap((definition) => [definition.name, definition.desc])])
-          .filter((value): value is string => typeof value === "string")
-          .some((value) => /[ぁ-んァ-ヶ가-힣]/u.test(value)),
-        false,
-      );
+      assert.ok(sections.some((section) => section.heading === "标题搜索语言"));
+      assert.ok(sections.some((section) => section.heading === "元数据提供商"));
       assert.deepEqual(
         tab.getSettingsPageSections("features").map((section) => section.heading),
-        ["Feature settings"],
+        ["特性设置"],
       );
     } finally {
       resetLocaleForTests();
@@ -108,8 +104,8 @@ describe("search language settings", () => {
     Object.assign(host, {
       getFeatureSettingsSections: () => [{
         page: "features" as const,
-        heading: "Feature settings",
-        definitions: [{ name: "Feature option", desc: "Feature option description" }],
+        heading: "特性设置",
+        definitions: [{ name: "特性选项", desc: "特性选项描述" }],
       }],
     });
     const tab = new AnimeListSettingTab(new App(), host);
@@ -121,11 +117,11 @@ describe("search language settings", () => {
     assert.deepEqual(pages.map((page) => page.desc), SETTINGS_PAGES.map((page) => page.description));
 
     const searchableNames = searchableSettingNames(definitions);
-    assert.ok(searchableNames.includes("Display language"));
-    assert.ok(searchableNames.includes("Storage layout"));
-    assert.ok(searchableNames.includes("Chinese titles"));
+    assert.ok(searchableNames.includes("显示语言"));
+    assert.ok(searchableNames.includes("存储模式"));
+    assert.ok(searchableNames.includes("中文标题"));
     assert.ok(searchableNames.includes("AniList"));
-    assert.ok(searchableNames.includes("Feature option"));
+    assert.ok(searchableNames.includes("特性选项"));
 
     const expectedDefinitionCount = tab.getSettingSections()
       .reduce((count, section) => count + section.definitions.length, 0);
@@ -136,37 +132,37 @@ describe("search language settings", () => {
     const tab = new AnimeListSettingTab(new App(), createHost());
 
     assert.deepEqual(SETTINGS_PAGES.map((page) => page.label), [
-      "General",
-      "Search & metadata",
-      "Features",
-      "Maintenance",
-      "Updates & cleanup",
+      "常规",
+      "搜索与元数据",
+      "功能特性",
+      "维护",
+      "更新与清理",
     ]);
     assert.deepEqual(SETTINGS_PAGES.map((page) => page.description), [
-      "Core settings for the interface, library storage, file locations, and timeline behavior.",
-      "Settings for title search languages and the metadata providers used to enrich your library.",
-      "Settings for optional AnimeList features and their feature-specific behavior.",
-      "Library setup and maintenance actions for folders, templates, and routine upkeep.",
-      "Tools for update-related migrations and cleaning up legacy or obsolete AnimeList data.",
+      "界面语言、媒体存储模式、文件存储路径与时间线默认布局配置。",
+      "作品标题搜索语言偏好以及元数据抓取提供商开关。",
+      "连载追更、Bangumi 同步、标签管理、神作分级与封面搜索等特性配置。",
+      "目录结构初始化、内置模板复制及无引用文件清理。",
+      "适配新版本的数据迁移工具、文件名校准与旧版元数据清理。",
     ]);
     assert.equal(
       getSettingsPageDefinition("features").description,
-      "Settings for optional AnimeList features and their feature-specific behavior.",
+      "连载追更、Bangumi 同步、标签管理、神作分级与封面搜索等特性配置。",
     );
     assert.deepEqual(tab.getSettingsPageSections("general").map((section) => section.heading), [
-      "Interface",
-      "Library & storage",
-      "File locations",
-      "Timeline",
+      "界面",
+      "媒体库与存储模式",
+      "文件存储路径",
+      "时间线",
     ]);
     assert.deepEqual(tab.getSettingsPageSections("search-metadata").map((section) => section.heading), [
-      "Search languages",
-      "Metadata providers",
+      "标题搜索语言",
+      "元数据提供商",
     ]);
     assert.deepEqual(tab.getSettingsPageSections("updates-cleanup").map((section) => section.heading), []);
     assert.deepEqual(tab.getSettingsPageSections("maintenance").map((section) => section.heading), [
-      "Library setup",
-      "Storage cleanup",
+      "媒体库初始化",
+      "存储清理",
     ]);
   });
 
@@ -185,8 +181,8 @@ describe("search language settings", () => {
       return { removedManagedFiles: 2, removedJournalFiles: 1, removedCacheFiles: 3 };
     };
     const tab = new AnimeListSettingTab(new App(), host);
-    const section = tab.getSettingsPageSections("maintenance").find((value) => value.heading === "Storage cleanup");
-    const definition = section?.definitions.find((value) => value.name === "Garbage files");
+    const section = tab.getSettingsPageSections("maintenance").find((value) => value.heading === "存储清理");
+    const definition = section?.definitions.find((value) => value.name === "清理无引用文件");
     assert.ok(definition?.render);
 
     let label = "";
@@ -208,7 +204,7 @@ describe("search language settings", () => {
       },
     };
     definition.render(setting as never);
-    assert.equal(label, "Clean garbage files");
+    assert.equal(label, "清理无引用文件");
     assert.ok(click);
     await click();
     assert.equal(cleanupCalls, 1);

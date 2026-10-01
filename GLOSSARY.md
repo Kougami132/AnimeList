@@ -31,3 +31,22 @@ _Avoid_: Sync list, Import preview
 **Strict Subject Matching**:
 The identification strategy that pairs local media notes with remote Bangumi subjects exclusively via explicit Bangumi subject ID frontmatter fields.
 _Avoid_: Title matching, Fuzzy matching
+
+## Storage & Settings
+
+**Managed Mode (分类托管模式)**:
+The storage layout that organizes media notes into dedicated `Anime/`, `Manga/`, and `Novel/` subdirectories beneath the configured library root.
+_Avoid_: Nested mode, Structured mode
+
+**Flat Mode (单文件夹模式)**:
+The storage layout that writes all media notes directly into a single folder without media-type subdirectories.
+_Avoid_: Root mode, Single-dir mode
+
+**Storage Cleanup (存储清理)**:
+The maintenance routine that identifies and safely moves unreferenced managed covers and media assets to the Obsidian trash while removing stale caches.
+_Avoid_: File purge, Trash empty
+
+**Version Updates Maintenance (版本更新兼容维护)**:
+The administrative toolset for one-time migrations required by newer plugin versions, such as note filename-title reconciliation, duplicate embedded cover cleanup, and legacy metadata schema upgrades.
+_Avoid_: Migration center, Legacy fix
+

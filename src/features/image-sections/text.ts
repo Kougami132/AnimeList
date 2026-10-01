@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { IMAGE_SECTION_MESSAGES } from "../../i18n/locales/zh-TW/image-section";
+import { IMAGE_SECTION_MESSAGES } from "../../i18n/locales/zh-CN/image-section";
 
 export const IMAGE_SECTION_TEXT = IMAGE_SECTION_MESSAGES;
 const CATALOG = defineTextCatalog("image-section", IMAGE_SECTION_TEXT);

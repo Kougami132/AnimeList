@@ -1,8 +1,6 @@
 import { App, Notice, PluginSettingTab, Setting, normalizePath, requireApiVersion } from "obsidian";
 import type { SettingDefinition, SettingDefinitionItem } from "obsidian";
 import { DEFAULT_SEARCH_LANGUAGES } from "../app/search/multilingual-search";
-import { withActiveLocale } from "../i18n/catalog";
-import { searchFeatureText } from "../features/search/text";
 import {
   SETTINGS_PAGES,
   getSettingsPageDefinition,
@@ -23,7 +21,6 @@ import type {
   StorageMode,
 } from "../types";
 export { DEFAULT_SETTINGS } from "../app/settings-model";
-import { uiText } from "../ui-text";
 import { buildDeclarativeSettingsPage } from "./settings-declarative";
 import { isolateHorizontalSwipeSurface } from "./mobile-swipe-isolation";
 
@@ -69,147 +66,145 @@ export class AnimeListSettingTab extends PluginSettingTab {
   }
 
   getInterfaceLanguageDefinition(): SettingDefinition {
-    return withActiveLocale("en", () => ({
-      name: uiText("settings.language.name"),
-      desc: uiText("settings.language.desc"),
+    return {
+      name: "显示语言",
+      desc: "选择 AnimeList 视图、弹窗与通知的界面语言（设置页面固定保持中文）。此操作不会修改笔记正文、标签或元数据。",
       render: (setting) => this.renderInterfaceLanguage(setting),
-    }));
+    };
   }
 
   private getCoreSettingDefinitions(): SettingDefinition[] {
-    return withActiveLocale("en", () => [
+    return [
       {
-        name: uiText("settings.storageLayout.name"),
-        desc: uiText("settings.storageLayout.desc"),
+        name: "存储模式",
+        desc: "分类托管模式会自动创建 Anime、Manga 和 Novel 子文件夹。单文件夹模式将所有媒体笔记直接保存在同一目录下。",
         render: (setting) => this.renderStorageLayout(setting),
       },
       {
-        name: uiText("settings.libraryRoot.name"),
-        desc: uiText("settings.libraryRoot.desc"),
+        name: "媒体库根目录",
+        desc: "AnimeList 将在此目录下创建 Anime、Manga、Novel、Covers 与 Templates 子文件夹。默认为 AnimeList。",
         visible: () => this.plugin.settings.storageMode === "managed",
         render: (setting) => this.renderLibraryRoot(setting),
       },
       {
-        name: uiText("settings.flatFolder.name"),
-        desc: uiText("settings.flatFolder.desc"),
+        name: "单文件夹保存路径",
+        desc: "媒体笔记将直接保存在此文件夹中，不创建 Anime、Manga、Novel 子文件夹。留空则保存在仓库根目录。",
         visible: () => this.plugin.settings.storageMode === "flat",
         render: (setting) => this.renderFlatMediaFolder(setting),
       },
       {
-        name: uiText("settings.additionalFolders.name"),
-        desc: uiText("settings.additionalFolders.desc"),
+        name: "附加扫描文件夹",
+        desc: "仅读取而不移动文件的既有文件夹路径（相对于仓库根目录）。每行输入一个路径，或使用逗号分隔。",
         render: (setting) => this.renderAdditionalScanFolders(setting),
       },
       {
-        name: uiText("settings.coverFolder.name"),
-        desc: uiText("settings.coverFolder.desc"),
+        name: "封面保存目录",
+        desc: "下载的封面图片将保存在此目录下，按媒体类型分组存放。",
         render: (setting) => this.renderCoverFolder(setting),
       },
       {
-        name: uiText("settings.templateFolder.name"),
-        desc: uiText("settings.templateFolder.desc"),
+        name: "自定义模板目录",
+        desc: "自定义模板将从该目录下的 Anime、Manga、Novel 和 Common 子文件夹中读取。",
         render: (setting) => this.renderTemplateFolder(setting),
       },
       {
-        name: uiText("settings.timelineMaxStackDepth.name"),
-        desc: uiText("settings.timelineMaxStackDepth.desc"),
+        name: "时间线单侧最大堆叠深度",
+        desc: "计算默认时间线间距时，单侧允许堆叠的最大卡片层数（默认为 3 层）。",
         render: (setting) => this.renderTimelineMaxStackDepth(setting),
       },
       {
-        name: uiText("media.provider.bangumi"),
-        desc: uiText("settings.provider.bangumi.desc"),
+        name: "Bangumi",
+        desc: "搜索动画、漫画与轻小说。对中文和日文作品匹配效果极佳。",
         render: (setting) => this.renderProvider(setting, "bangumi"),
       },
       {
-        name: uiText("media.provider.anilist"),
-        desc: uiText("settings.provider.anilist.desc"),
+        name: "AniList",
+        desc: "以结构化元数据搜索动画、漫画与轻小说。",
         render: (setting) => this.renderProvider(setting, "anilist"),
       },
       {
-        name: uiText("media.provider.openlibrary"),
-        desc: uiText("settings.provider.openlibrary.desc"),
+        name: "Open Library",
+        desc: "搜索常规小说与图书作品。",
         render: (setting) => this.renderProvider(setting, "openlibrary"),
       },
       {
-        name: uiText("settings.createFolders.name"),
-        desc: uiText("settings.createFolders.desc"),
+        name: "创建预设文件夹",
+        desc: "创建缺失的笔记、封面与模板文件夹。绝不会移动或覆盖已有文件。",
         render: (setting) => this.renderCreateFolders(setting),
       },
       {
-        name: uiText("settings.copyTemplates.name"),
-        desc: uiText("settings.copyTemplates.desc"),
+        name: "复制内置模板",
+        desc: "将内置中文模板写入配置的模板文件夹。不会覆盖已有文件。",
         render: (setting) => this.renderCopyTemplates(setting),
       },
-    ]);
+    ];
   }
 
   getSearchLanguageDefinitions(): SettingDefinition[] {
-    return withActiveLocale("en", () => [
+    return [
       {
-        name: searchFeatureText("settings.languages.chinese.name"),
-        desc: searchFeatureText("settings.languages.chinese.desc"),
+        name: "中文标题",
+        desc: "使用简体中文与繁体中文别名检索匹配作品。",
         render: (setting) => this.renderSearchLanguage(setting, "chinese"),
       },
       {
-        name: searchFeatureText("settings.languages.english.name"),
-        desc: searchFeatureText("settings.languages.english.desc"),
+        name: "英文标题",
+        desc: "使用英文标题与提供商同义词扩展搜索范围。",
         render: (setting) => this.renderSearchLanguage(setting, "english"),
       },
       {
-        name: searchFeatureText("settings.languages.original.name"),
-        desc: searchFeatureText("settings.languages.original.desc"),
+        name: "原语言标题",
+        desc: "使用原生标题与罗马字标题（日文、韩文或其他原文）。",
         render: (setting) => this.renderSearchLanguage(setting, "original"),
       },
-    ]);
+    ];
   }
 
   getSettingSections(): SettingsSection[] {
-    return withActiveLocale("en", () => {
-      const base = this.getCoreSettingDefinitions();
-      const sections: SettingsSection[] = [
-        {
-          page: "general",
-          definitions: [this.getInterfaceLanguageDefinition(), ...base.slice(0, 6)],
-        },
-        {
-          page: "general",
-          heading: uiText("settings.timeline.heading"),
-          description: uiText("settings.timeline.desc"),
-          definitions: base.slice(6, 7),
-        },
-        {
-          page: "search-metadata",
-          heading: searchFeatureText("settings.languages.heading"),
-          definitions: this.getSearchLanguageDefinitions(),
-        },
-        {
-          page: "search-metadata",
-          heading: uiText("settings.providers.heading"),
-          definitions: base.slice(7, 10),
-        },
-        {
-          page: "maintenance",
-          heading: uiText("settings.setup.heading"),
-          definitions: base.slice(10),
-        },
-        {
-          page: "maintenance",
-          heading: "Storage cleanup",
-          description: "Remove AnimeList-managed files that are no longer referenced anywhere in the vault.",
-          definitions: [{
-            name: "Garbage files",
-            desc: "Safely moves unreferenced AnimeList covers and image assets to the Obsidian trash, and removes stale plugin cache/state files.",
-            render: (setting) => this.renderGarbageCleanup(setting),
-          }],
-        },
-      ];
-      const featureSections = (this.plugin.getFeatureSettingsSections?.() ?? []).map((section) => ({
-        ...section,
-        page: section.page ?? "features" as const,
-      }));
-      sections.splice(1, 0, ...featureSections);
-      return sections;
-    });
+    const base = this.getCoreSettingDefinitions();
+    const sections: SettingsSection[] = [
+      {
+        page: "general",
+        definitions: [this.getInterfaceLanguageDefinition(), ...base.slice(0, 6)],
+      },
+      {
+        page: "general",
+        heading: "时间线",
+        description: "控制时间线首次打开或重置为默认视图时的初始布局。",
+        definitions: base.slice(6, 7),
+      },
+      {
+        page: "search-metadata",
+        heading: "标题搜索语言",
+        definitions: this.getSearchLanguageDefinitions(),
+      },
+      {
+        page: "search-metadata",
+        heading: "元数据提供商",
+        definitions: base.slice(7, 10),
+      },
+      {
+        page: "maintenance",
+        heading: "媒体库初始化",
+        definitions: base.slice(10),
+      },
+      {
+        page: "maintenance",
+        heading: "存储清理",
+        description: "清理媒体库中不再被任何笔记引用的本地文件。",
+        definitions: [{
+          name: "清理无引用文件",
+          desc: "安全将未被引用的 AnimeList 本地封面和媒体图片移至 Obsidian 回收站，并清理失效的插件缓存与状态文件。",
+          render: (setting) => this.renderGarbageCleanup(setting),
+        }],
+      },
+    ];
+    const featureSections = (this.plugin.getFeatureSettingsSections?.() ?? []).map((section) => ({
+      ...section,
+      page: section.page ?? "features" as const,
+    }));
+    sections.splice(1, 0, ...featureSections);
+    return sections;
   }
 
   private pageSectionsFrom(
@@ -221,9 +216,9 @@ export class AnimeListSettingTab extends PluginSettingTab {
     const core = sections.find((section) => !section.heading);
     if (!core) return sections;
     return [
-      { page: "general", heading: "Interface", definitions: core.definitions.slice(0, 1) },
-      { page: "general", heading: "Library & storage", definitions: core.definitions.slice(1, 5) },
-      { page: "general", heading: "File locations", definitions: core.definitions.slice(5) },
+      { page: "general", heading: "界面", definitions: core.definitions.slice(0, 1) },
+      { page: "general", heading: "媒体库与存储模式", definitions: core.definitions.slice(1, 5) },
+      { page: "general", heading: "文件存储路径", definitions: core.definitions.slice(5) },
       ...sections.filter((section) => section !== core),
     ];
   }
@@ -233,13 +228,11 @@ export class AnimeListSettingTab extends PluginSettingTab {
   }
 
   getSettingDefinitions(): SettingDefinitionItem[] {
-    return withActiveLocale("en", () => {
-      const allSections = this.getSettingSections();
-      return SETTINGS_PAGES.map((page) => buildDeclarativeSettingsPage(
-        page,
-        this.pageSectionsFrom(allSections, page.id),
-      ));
-    });
+    const allSections = this.getSettingSections();
+    return SETTINGS_PAGES.map((page) => buildDeclarativeSettingsPage(
+      page,
+      this.pageSectionsFrom(allSections, page.id),
+    ));
   }
 
   display(): void {
@@ -252,7 +245,7 @@ export class AnimeListSettingTab extends PluginSettingTab {
   private renderPageTabs(containerEl: HTMLElement): void {
     const tabList = isolateHorizontalSwipeSurface(containerEl.createDiv({ cls: "animelist-settings-tabs" }));
     tabList.setAttribute("role", "tablist");
-    tabList.setAttribute("aria-label", "Settings pages");
+    tabList.setAttribute("aria-label", "设置分页");
 
     for (const page of SETTINGS_PAGES) {
       const active = page.id === this.activePage;
@@ -291,42 +284,40 @@ export class AnimeListSettingTab extends PluginSettingTab {
   }
 
   private renderImperativeSettings(): void {
-    withActiveLocale("en", () => {
-      const { containerEl } = this;
-      containerEl.empty();
-      this.activePage = normalizeSettingsPage(this.activePage);
-      this.renderPageTabs(containerEl);
+    const { containerEl } = this;
+    containerEl.empty();
+    this.activePage = normalizeSettingsPage(this.activePage);
+    this.renderPageTabs(containerEl);
 
-      const panel = containerEl.createDiv({ cls: "animelist-settings-page" });
-      panel.id = `animelist-settings-panel-${this.activePage}`;
-      panel.setAttribute("role", "tabpanel");
-      panel.setAttribute("aria-labelledby", `animelist-settings-tab-${this.activePage}`);
-      panel.createEl("p", {
-        cls: "animelist-settings-intro",
-        text: getSettingsPageDefinition(this.activePage).description,
-      });
-
-      for (const section of this.getSettingsPageSections(this.activePage)) {
-        const sectionEl = panel.createEl("section", { cls: "animelist-settings-section" });
-        if (section.heading) {
-          const headerEl = sectionEl.createDiv({ cls: "animelist-settings-section-header" });
-          const heading = new Setting(headerEl).setName(section.heading).setHeading();
-          if (section.description) heading.setDesc(section.description);
-        }
-
-        const bodyEl = sectionEl.createDiv({ cls: "animelist-settings-section-body" });
-        let renderedDefinitions = 0;
-        for (const definition of section.definitions) {
-          if (definition.visible === false
-            || (typeof definition.visible === "function" && !definition.visible())) continue;
-          const setting = new Setting(bodyEl).setName(definition.name);
-          if (definition.desc) setting.setDesc(definition.desc);
-          definition.render?.(setting);
-          renderedDefinitions += 1;
-        }
-        if (renderedDefinitions === 0) sectionEl.remove();
-      }
+    const panel = containerEl.createDiv({ cls: "animelist-settings-page" });
+    panel.id = `animelist-settings-panel-${this.activePage}`;
+    panel.setAttribute("role", "tabpanel");
+    panel.setAttribute("aria-labelledby", `animelist-settings-tab-${this.activePage}`);
+    panel.createEl("p", {
+      cls: "animelist-settings-intro",
+      text: getSettingsPageDefinition(this.activePage).description,
     });
+
+    for (const section of this.getSettingsPageSections(this.activePage)) {
+      const sectionEl = panel.createEl("section", { cls: "animelist-settings-section" });
+      if (section.heading) {
+        const headerEl = sectionEl.createDiv({ cls: "animelist-settings-section-header" });
+        const heading = new Setting(headerEl).setName(section.heading).setHeading();
+        if (section.description) heading.setDesc(section.description);
+      }
+
+      const bodyEl = sectionEl.createDiv({ cls: "animelist-settings-section-body" });
+      let renderedDefinitions = 0;
+      for (const definition of section.definitions) {
+        if (definition.visible === false
+          || (typeof definition.visible === "function" && !definition.visible())) continue;
+        const setting = new Setting(bodyEl).setName(definition.name);
+        if (definition.desc) setting.setDesc(definition.desc);
+        definition.render?.(setting);
+        renderedDefinitions += 1;
+      }
+      if (renderedDefinitions === 0) sectionEl.remove();
+    }
   }
 
   private refreshSettingsTab(): void {
@@ -340,11 +331,12 @@ export class AnimeListSettingTab extends PluginSettingTab {
   private renderInterfaceLanguage(setting: Setting): void {
     setting.addDropdown((dropdown) => {
       dropdown
-        .addOption("system", uiText("settings.language.system"))
-        .addOption("zh-TW", uiText("settings.language.zhTW"))
-        .addOption("en", uiText("settings.language.en"))
-        .addOption("ja", uiText("settings.language.ja"))
-        .addOption("ko", uiText("settings.language.ko"))
+        .addOption("system", "跟随系统")
+        .addOption("zh-CN", "简体中文")
+        .addOption("zh-TW", "繁体中文")
+        .addOption("en", "English")
+        .addOption("ja", "日本語")
+        .addOption("ko", "한국어")
         .setValue(this.plugin.settings.interfaceLanguage)
         .onChange(async (value) => {
           const preference = value as LanguagePreference;
@@ -363,8 +355,8 @@ export class AnimeListSettingTab extends PluginSettingTab {
   private renderStorageLayout(setting: Setting): void {
     setting.addDropdown((dropdown) => {
       dropdown
-        .addOption("managed", uiText("settings.storageLayout.managed"))
-        .addOption("flat", uiText("settings.storageLayout.flat"))
+        .addOption("managed", "分类托管模式")
+        .addOption("flat", "单文件夹模式")
         .setValue(this.plugin.settings.storageMode)
         .onChange(async (value) => {
           this.plugin.settings.storageMode = value as StorageMode;
@@ -488,15 +480,15 @@ export class AnimeListSettingTab extends PluginSettingTab {
 
   private renderGarbageCleanup(setting: Setting): void {
     setting.addButton((button) => {
-      button.setButtonText("Clean garbage files").onClick(async () => {
+      button.setButtonText("清理无引用文件").onClick(async () => {
         button.buttonEl.disabled = true;
         try {
           const result = await this.plugin.cleanupGarbageFiles();
           const removed = result.removedManagedFiles + result.removedJournalFiles + result.removedCacheFiles;
-          new Notice(`Removed ${removed} garbage file${removed === 1 ? "" : "s"}.`);
+          new Notice(`已清理 ${removed} 个无引用文件。`);
         } catch (error) {
           console.error("AnimeList garbage-file cleanup failed", error);
-          new Notice("Could not clean garbage files. Check the console for details.");
+          new Notice("清理无引用文件失败，详情请查看控制台。");
         } finally {
           button.buttonEl.disabled = false;
         }
@@ -506,18 +498,18 @@ export class AnimeListSettingTab extends PluginSettingTab {
 
   private renderCreateFolders(setting: Setting): void {
     setting.addButton((button) => {
-      button.setButtonText(uiText("settings.createFolders.button")).onClick(async () => {
+      button.setButtonText("创建文件夹").onClick(async () => {
         await this.plugin.initializeLibrary(false);
-        new Notice(uiText("settings.createFolders.notice"));
+        new Notice("预设文件夹已就绪。");
       });
     });
   }
 
   private renderCopyTemplates(setting: Setting): void {
     setting.addButton((button) => {
-      button.setButtonText(uiText("settings.copyTemplates.button")).onClick(async () => {
+      button.setButtonText("复制模板").onClick(async () => {
         await this.plugin.initializeLibrary(true);
-        new Notice(uiText("settings.copyTemplates.notice"));
+        new Notice("默认模板已复制就绪。");
       });
     });
   }

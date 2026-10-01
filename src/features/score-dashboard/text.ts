@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { SCORE_DASHBOARD_MESSAGES } from "../../i18n/locales/zh-TW/score-dashboard";
+import { SCORE_DASHBOARD_MESSAGES } from "../../i18n/locales/zh-CN/score-dashboard";
 
 const MESSAGES = SCORE_DASHBOARD_MESSAGES;
 const CATALOG = defineTextCatalog("score-dashboard", MESSAGES);

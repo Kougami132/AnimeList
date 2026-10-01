@@ -86,7 +86,7 @@ describe("settings compatibility", () => {
       uiState: { type: "podcast", status: "all", view: "table", layoutColumns: { grid: 0, poster: 99 } },
     });
 
-    assert.equal(settings.interfaceLanguage, "zh-TW");
+    assert.equal(settings.interfaceLanguage, "zh-CN");
     assert.equal(settings.storageMode, DEFAULT_SETTINGS.storageMode);
     assert.deepEqual(settings.additionalScanFolders, []);
     assert.deepEqual(settings.tagCatalog, []);

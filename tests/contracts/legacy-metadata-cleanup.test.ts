@@ -337,7 +337,7 @@ describe("legacy metadata cleanup", () => {
     }]);
   });
 
-  it("uses English Settings copy and opens the progress workflow", () => {
+  it("uses Simplified Chinese Settings copy and opens the progress workflow", () => {
     const host = {
       app: {},
       getScanFolders: () => ["AnimeList"],
@@ -346,9 +346,9 @@ describe("legacy metadata cleanup", () => {
     } as unknown as AnimeListFeatureHost;
     let opened = 0;
     const section = createLegacyMetadataSettingsSection(host, () => { opened += 1; });
-    assert.equal(section.heading, "Legacy metadata cleanup");
-    assert.match(section.description ?? "", /current metadata schema/i);
-    assert.equal(legacyMetadataText("settings.button"), "Scan and upgrade");
+    assert.equal(section.heading, "旧版元数据清理");
+    assert.match(section.description ?? "", /最新元数据规范/);
+    assert.equal(legacyMetadataText("settings.button"), "扫描并升级");
 
     const definition = section.definitions[0];
     if (!definition?.render) throw new Error("Legacy cleanup setting is not renderable");

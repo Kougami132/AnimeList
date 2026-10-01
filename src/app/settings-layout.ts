@@ -17,28 +17,28 @@ export interface SettingsPageDefinition {
 export const SETTINGS_PAGES: readonly SettingsPageDefinition[] = [
   {
     id: "general",
-    label: "General",
-    description: "Core settings for the interface, library storage, file locations, and timeline behavior.",
+    label: "常规",
+    description: "界面语言、媒体存储模式、文件存储路径与时间线默认布局配置。",
   },
   {
     id: "search-metadata",
-    label: "Search & metadata",
-    description: "Settings for title search languages and the metadata providers used to enrich your library.",
+    label: "搜索与元数据",
+    description: "作品标题搜索语言偏好以及元数据抓取提供商开关。",
   },
   {
     id: "features",
-    label: "Features",
-    description: "Settings for optional AnimeList features and their feature-specific behavior.",
+    label: "功能特性",
+    description: "连载追更、Bangumi 同步、标签管理、神作分级与封面搜索等特性配置。",
   },
   {
     id: "maintenance",
-    label: "Maintenance",
-    description: "Library setup and maintenance actions for folders, templates, and routine upkeep.",
+    label: "维护",
+    description: "目录结构初始化、内置模板复制及无引用文件清理。",
   },
   {
     id: "updates-cleanup",
-    label: "Updates & cleanup",
-    description: "Tools for update-related migrations and cleaning up legacy or obsolete AnimeList data.",
+    label: "更新与清理",
+    description: "适配新版本的数据迁移工具、文件名校准与旧版元数据清理。",
   },
 ];
 

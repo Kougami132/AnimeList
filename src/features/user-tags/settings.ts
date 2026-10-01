@@ -4,7 +4,6 @@ import { UserTagLibraryService } from "../../data/user-tag-library-service";
 import { mergeUserTagCatalog } from "../../domain/user-tag-catalog";
 import { compatibleGenres } from "../../data/media-frontmatter-compat";
 import { UserTagManagerModal } from "../../ui/user-tag-manager-modal";
-import { userTagText } from "./text";
 
 function sameTags(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((value, index) => value === right[index]);
@@ -20,7 +19,7 @@ async function saveCatalog(host: AnimeListFeatureHost, next: string[]): Promise<
 function renderTagManagerLauncher(setting: Setting, host: AnimeListFeatureHost): void {
   setting.addButton((button) => {
     button
-      .setButtonText(userTagText("settings.manage"))
+      .setButtonText("管理标签…")
       .onClick(() => {
         void (async () => {
           const service = new UserTagLibraryService(host.app, () => host.getScanFolders());
@@ -37,11 +36,11 @@ function renderTagManagerLauncher(setting: Setting, host: AnimeListFeatureHost):
 
 export function createUserTagSettingsSection(host: AnimeListFeatureHost): FeatureSettingsSection {
   return {
-    heading: userTagText("settings.heading"),
-    description: userTagText("settings.description"),
+    heading: "作品标签",
+    description: "集中管理可复用的作品标签，保持设置页面清爽。",
     definitions: [{
-      name: userTagText("settings.name"),
-      desc: userTagText("settings.desc"),
+      name: "标签管理器",
+      desc: "在 AnimeList 媒体库中添加、重命名、删除及查看标签的使用情况。",
       render: (setting: Setting) => renderTagManagerLauncher(setting, host),
     }],
   };

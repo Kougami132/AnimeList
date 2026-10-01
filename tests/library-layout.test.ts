@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { Setting } from "obsidian";
 import type { AnimeListFeatureHost } from "../src/app/feature-types";
 import { createDefaultSettings } from "../src/app/settings-model";
+import "../src/features/library-layout/text";
 import { createLibraryLayoutSettingsSection } from "../src/features/library-layout/settings";
 import { registerLocaleMessages, withActiveLocale } from "../src/i18n/catalog";
 import { EN_LIBRARY_LAYOUT_MESSAGES } from "../src/i18n/locales/en/library-layout";
@@ -54,10 +55,10 @@ describe("library layout columns", () => {
     const section = withActiveLocale("en", () => createLibraryLayoutSettingsSection(host));
 
     assert.equal(section.page, "general");
-    assert.equal(section.heading, "Library layout");
+    assert.equal(section.heading, "媒体库排版");
     assert.deepEqual(section.definitions.map((definition) => definition.name), [
-      "Card items per row",
-      "Thumbnail items per row",
+      "卡片视图每行数量",
+      "缩略图视图每行数量",
     ]);
 
     interface SliderLike {

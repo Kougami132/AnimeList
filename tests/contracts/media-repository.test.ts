@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { App, TFile, TFolder } from "obsidian";
 import { MediaRepository } from "../../src/data/media-repository";
 import { formatFileModifiedTime } from "../../src/domain/value-normalization";
+import { uiText } from "../../src/ui-text";
 
 function markdownFile(path: string, mtime = 0): TFile {
   const file = new TFile();
@@ -98,7 +99,7 @@ describe("media repository compatibility", () => {
       coverSources: undefined,
       filePath: anime.path,
       updated: modified,
-      updatedLabel: `更新於 ${formatFileModifiedTime(modified)}`,
+      updatedLabel: uiText("library.updatedAt", { date: formatFileModifiedTime(modified) }),
       startedAt: "",
       completedAt: "",
       volumeLog: [],

@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { SEARCH_MESSAGES } from "../../i18n/locales/zh-TW/search";
+import { SEARCH_MESSAGES } from "../../i18n/locales/zh-CN/search";
 
 const SEARCH_FEATURE_TEXT = SEARCH_MESSAGES;
 

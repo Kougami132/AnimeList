@@ -11,9 +11,11 @@ import { registerLocaleMessages } from "../catalog";
 import { EN_CATALOGS } from "./en";
 import { JA_CATALOGS } from "./ja";
 import { KO_CATALOGS } from "./ko";
-import { ZH_TW_CATALOGS, type LocaleCatalogs, type ZhTwCatalogNamespace } from "./zh-TW";
+import { ZH_CN_CATALOGS, type ZhCnCatalogNamespace } from "./zh-CN";
+import { ZH_TW_CATALOGS, type LocaleCatalogs } from "./zh-TW";
 
 export const BUNDLED_LOCALE_CATALOGS = {
+  "zh-CN": ZH_CN_CATALOGS,
   "zh-TW": ZH_TW_CATALOGS,
   en: EN_CATALOGS,
   ja: JA_CATALOGS,
@@ -22,9 +24,9 @@ export const BUNDLED_LOCALE_CATALOGS = {
 
 export function registerBundledLocales(): void {
   for (const [locale, catalogs] of Object.entries(BUNDLED_LOCALE_CATALOGS)) {
-    if (locale === "zh-TW") continue;
+    if (locale === "zh-CN") continue;
     for (const [namespace, messages] of Object.entries(catalogs)) {
-      registerLocaleMessages(namespace as ZhTwCatalogNamespace, locale, messages as Record<string, string>);
+      registerLocaleMessages(namespace as ZhCnCatalogNamespace, locale, messages as Record<string, string>);
     }
   }
 }

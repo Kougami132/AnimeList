@@ -1,5 +1,5 @@
 import { defineTextCatalog } from "../../i18n/catalog";
-import { RATING_MESSAGES } from "../../i18n/locales/zh-TW/rating";
+import { RATING_MESSAGES } from "../../i18n/locales/zh-CN/rating";
 
 export const RATING_FEATURE_TEXT = RATING_MESSAGES;
 

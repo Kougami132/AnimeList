@@ -7,6 +7,7 @@ import { tagSuggestionValues } from "../../src/ui/tag-chip-control";
 import { storedMediaExternalResult, storedMediaNeedsClassificationRefresh } from "../../src/data/stored-media-result";
 import { normalizeUserTags } from "../../src/domain/user-tags";
 import { normalizeAnimeStudios } from "../../src/domain/media-metadata";
+import { mediaFormatLabel } from "../../src/ui-text";
 
 function result(): ExternalMediaResult {
   return {
@@ -51,7 +52,7 @@ describe("media classification collection fields", () => {
     const rows = mediaClassificationFieldValues(result());
     const values = Object.fromEntries(rows.map((row) => [row.key, row.value]));
 
-    assert.equal(values.format, "TV 動畫");
+    assert.equal(values.format, mediaFormatLabel("tv"));
     assert.equal(values.people, "CloverWorks");
     assert.equal(values.season, "2021 Q1 (冬季)");
     assert.deepEqual(rows.map((row) => row.key), ["format", "people", "season"]);
@@ -80,7 +81,7 @@ describe("media classification collection fields", () => {
     }, "anime");
     const values = Object.fromEntries(rows.map((row) => [row.key, row.value]));
 
-    assert.equal(values.format, "TV 動畫");
+    assert.equal(values.format, mediaFormatLabel("tv"));
     assert.equal(values.people, "CloverWorks");
     assert.equal(values.season, "2021 Q1 (冬季)");
     assert.deepEqual(rows.map((row) => row.key), ["format", "people", "season"]);

@@ -1,6 +1,6 @@
 import type { MediaType } from "./types";
 import { defineTextCatalog } from "./i18n/catalog";
-import { CORE_MESSAGES } from "./i18n/locales/zh-TW/core";
+import { CORE_MESSAGES } from "./i18n/locales/zh-CN/core";
 import {
   MEDIA_STATUS_FILTER_ORDER,
   MEDIA_STATUS_VALUES,

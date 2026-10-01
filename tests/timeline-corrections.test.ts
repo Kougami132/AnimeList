@@ -93,8 +93,8 @@ describe("timeline default centering correction", () => {
 describe("timeline serial-entry units", () => {
   it("renders chapter, season, and volume labels from the stored unit", () => {
     assert.deepEqual(timelineEntryCopy("漫畫", "12", "chapter"), {
-      title: "漫畫 — 第 12 話",
-      label: "第 12 話",
+      title: "漫畫 — 第 12 话",
+      label: "第 12 话",
     });
     assert.deepEqual(timelineEntryCopy("小說", "2", "season"), {
       title: "小說 — 第 2 季",
@@ -136,8 +136,8 @@ describe("timeline serial-entry units", () => {
     const season = expandTimelineEntries([{ ...base, mediaType: "novel", unit: "season" }])[0];
     const volume = expandTimelineEntries([{ ...base, mediaType: "novel", unit: "volume" }])[0];
 
-    assert.equal(chapter.title, "作品 — 第 12 話");
-    assert.equal(chapter.serialEntryLabel, "第 12 話");
+    assert.equal(chapter.title, "作品 — 第 12 话");
+    assert.equal(chapter.serialEntryLabel, "第 12 话");
     assert.equal(season.title, "作品 — 第 12 季");
     assert.equal(season.serialEntryLabel, "第 12 季");
     assert.equal(volume.title, "作品 — 第 12 卷");

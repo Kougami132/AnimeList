@@ -1,4 +1,5 @@
 import type { MediaSeason } from "../domain/media-classification";
+import { mediaSeasonFromTagValues, mediaSeasonFromValue } from "../domain/media-classification";
 import { normalizeAnimeStudios, normalizeBroadGenres, normalizeGenres } from "../domain/media-metadata";
 import { asArray, stringValue } from "../domain/value-normalization";
 
@@ -29,7 +30,6 @@ const LEGACY_SEASON_KEYS = ["classification_season", "classification_quarter"] a
 const LEGACY_SEASON_YEAR_KEYS = ["classification_season_year", "classification_year"] as const;
 const LEGACY_STRUCTURAL_SUFFIX = /(?:version|count|threshold|rank|min|max)$/i;
 const FORMAT_OR_NOISE = /^(?:tv|ova|ona|web|movie|special|music|manga|novel|one[_ -]?shot)$/i;
-const DATE_TOKEN = /(?:^|\D)((?:19|20)\d{2})\s*(?:年|[-/.])\s*(1[0-2]|0?[1-9])\s*(?:月)?(?:\D|$)/;
 const COMPANY_HINT = /(?:studio|pictures?|animation|works|films?|動画工房|動畫工房|动画工房|アニメーション|スタジオ)/i;
 const ALL_CAPS_COMPANY = /^[A-Z][A-Z0-9&.]{2,}(?:[- ][A-Z0-9&.]+)*$/;
 
@@ -103,21 +103,7 @@ export function writeCompatibleGenres(
 }
 
 function seasonFromValue(value: unknown): MediaSeason | null {
-  const normalized = stringValue(value).normalize("NFKC").trim().toLocaleLowerCase();
-  if (!normalized) return null;
-  if (normalized === "winter" || normalized === "q1" || /冬/.test(normalized)) return "winter";
-  if (normalized === "spring" || normalized === "q2" || /春/.test(normalized)) return "spring";
-  if (normalized === "summer" || normalized === "q3" || /夏/.test(normalized)) return "summer";
-  if (normalized === "fall" || normalized === "autumn" || normalized === "q4" || /秋/.test(normalized)) return "fall";
-  return null;
-}
-
-function seasonFromMonth(month: number): MediaSeason | null {
-  if (!Number.isInteger(month) || month < 1 || month > 12) return null;
-  if (month <= 3) return "winter";
-  if (month <= 6) return "spring";
-  if (month <= 9) return "summer";
-  return "fall";
+  return mediaSeasonFromValue(value);
 }
 
 export interface CompatibleSeasonMetadata {
@@ -126,21 +112,7 @@ export interface CompatibleSeasonMetadata {
 }
 
 export function seasonMetadataFromValues(values: readonly string[], fallbackYear: unknown = null): CompatibleSeasonMetadata {
-  let season: MediaSeason | null = null;
-  let seasonYear: number | null = null;
-  for (const value of values) {
-    season ??= seasonFromValue(value);
-    const match = value.normalize("NFKC").match(DATE_TOKEN);
-    if (!match) continue;
-    const year = Number(match[1]);
-    const month = Number(match[2]);
-    if (Number.isInteger(year)) seasonYear ??= year;
-    season ??= seasonFromMonth(month);
-    if (season && seasonYear !== null) break;
-  }
-  const fallback = Number(fallbackYear);
-  if (seasonYear === null && Number.isInteger(fallback) && fallback > 0) seasonYear = fallback;
-  return { season, seasonYear };
+  return mediaSeasonFromTagValues(values, fallbackYear);
 }
 
 export function compatibleSeasonMetadata(frontmatter: Record<string, unknown>): CompatibleSeasonMetadata {

@@ -256,6 +256,7 @@ export function buildMediaMarkdown(
       seasonYear: classification?.seasonYear,
       startDate: result.startDate,
       fallbackYear: result.year,
+      tagValues: result.rawGenres,
     });
     if (season.season) {
       lines.push(`season: ${yamlScalar(season.season)}`);

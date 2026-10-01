@@ -44,14 +44,14 @@ function noteFrontmatter(markdown: string): string {
   return match[1];
 }
 
-describe("anime calendar quarter metadata", () => {
-  it("uses actual start month ahead of provider season buckets", () => {
+describe("anime broadcasting season quarter metadata", () => {
+  it("prioritizes provider explicit broadcasting season ahead of calendar start month", () => {
     const metadata = resolveMediaSeasonMetadata({
       season: "spring",
       seasonYear: 2024,
       startDate: { year: 2024, month: 3, day: 31 },
     });
-    assert.deepEqual(metadata, { season: "winter", seasonYear: 2024 });
+    assert.deepEqual(metadata, { season: "spring", seasonYear: 2024 });
 
     const classification = normalizeAniListClassification({
       id: 42,
@@ -64,11 +64,86 @@ describe("anime calendar quarter metadata", () => {
       source: "ORIGINAL",
       countryOfOrigin: "JP",
     });
-    assert.equal(classification?.season, "winter");
+    assert.equal(classification?.season, "spring");
     assert.equal(classification?.seasonYear, 2024);
   });
 
-  it("uses provider season only when the actual start month is unavailable", () => {
+  it("correctly classifies June 30 broadcast as summer (Q3) when provider or tags specify summer season", () => {
+    const fromProvider = resolveMediaSeasonMetadata({
+      season: "summer",
+      seasonYear: 2026,
+      startDate: { year: 2026, month: 6, day: 30 },
+    });
+    assert.deepEqual(fromProvider, { season: "summer", seasonYear: 2026 });
+
+    const fromTags = resolveMediaSeasonMetadata({
+      startDate: { year: 2026, month: 6, day: 30 },
+      tagValues: ["2026年7月", "轻小说改"],
+    });
+    assert.deepEqual(fromTags, { season: "summer", seasonYear: 2026 });
+
+    const markdown = buildMediaMarkdown(animeResult({
+      startDate: { year: 2026, month: 6, day: 30 },
+      classification: {
+        anilistId: "196219",
+        genres: ["戀愛"],
+        tags: [],
+        season: "summer",
+        seasonYear: 2026,
+        studios: ["MagicBus"],
+        source: "LIGHT_NOVEL",
+        countryOfOrigin: "JP",
+      },
+    }), {
+      title: "无自觉圣女今天也无意识地释放力量",
+      score: null,
+      status: "ongoing",
+      releaseStatus: "unknown",
+      startedAt: "2026-06-30",
+      completedAt: "",
+      progress: 0,
+      total: 12,
+      unit: "episode",
+      favorite: false,
+      genres: ["戀愛"],
+      templatePath: "",
+      volumeLog: [],
+    }, "", "");
+    const yaml = noteFrontmatter(markdown);
+    assert.match(yaml, /^season: "summer"$/m);
+    assert.match(yaml, /^season_year: 2026$/m);
+  });
+
+  it("aligns cross-year winter anime airing in late December with the winter season year", () => {
+    const crossYear = resolveMediaSeasonMetadata({
+      season: "winter",
+      seasonYear: 2026,
+      startDate: { year: 2025, month: 12, day: 29 },
+    });
+    assert.deepEqual(crossYear, { season: "winter", seasonYear: 2026 });
+
+    const result = animeResult({
+      startDate: { year: 2025, month: 12, day: 29 },
+      classification: {
+        anilistId: "99999",
+        genres: ["奇幻"],
+        tags: [],
+        season: "winter",
+        seasonYear: 2026,
+        studios: ["Studio"],
+        source: "MANGA",
+        countryOfOrigin: "JP",
+      },
+    });
+    const quarter = mediaClassificationFieldValues(result).find((row) => row.key === "season");
+    assert.equal(quarter?.value, "2026 Q1 (冬季)");
+  });
+
+  it("falls back to calendar start month only when explicit season and tags are unavailable", () => {
+    assert.deepEqual(resolveMediaSeasonMetadata({
+      startDate: { year: 2025, month: 6, day: 30 },
+    }), { season: "spring", seasonYear: 2025 });
+
     assert.deepEqual(resolveMediaSeasonMetadata({
       season: "summer",
       seasonYear: 2025,
@@ -76,7 +151,7 @@ describe("anime calendar quarter metadata", () => {
     }), { season: "summer", seasonYear: 2025 });
   });
 
-  it("keeps UI quarter display aligned with calendar start month and hides year-only pseudo-quarters", () => {
+  it("keeps UI quarter display aligned with broadcasting season and hides year-only pseudo-quarters", () => {
     const result = animeResult({
       startDate: { year: 2025, month: 3, day: 31 },
       classification: {
@@ -91,7 +166,7 @@ describe("anime calendar quarter metadata", () => {
       },
     });
     const quarter = mediaClassificationFieldValues(result).find((row) => row.key === "season");
-    assert.equal(quarter?.value, "2025 Q1 (冬季)");
+    assert.equal(quarter?.value, "2025 Q2 (春季)");
     assert.equal(mediaQuarterLabel(null, 2025), "");
   });
 
@@ -158,5 +233,58 @@ describe("anime calendar quarter metadata", () => {
     assert.equal(frontmatter.season, "fall");
     assert.equal(frontmatter.season_year, 2025);
     assert.deepEqual(result.details[0]?.changes, ["season"]);
+  });
+
+  it("corrects a misclassified season during legacy metadata cleanup", async () => {
+    const frontmatter: Record<string, unknown> = {
+      schema_version: 6,
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: "571910",
+      source_urls: ["https://bgm.tv/subject/571910"],
+      anilist_id: "196219",
+      title: "无自觉圣女今天也无意识地释放力量",
+      year: 2026,
+      season: "spring",
+      season_year: 2026,
+      source_genres: ["2026年7月", "轻小说改"],
+      genres: ["戀愛"],
+      studios: ["MagicBus"],
+    };
+    const file = new TFile();
+    file.path = "AnimeList/Anime/无自觉圣女今天也无意识地释放力量.md";
+    file.basename = "无自觉圣女今天也无意识地释放力量";
+    file.extension = "md";
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      vault: { getRoot: () => ({ children: [file] }) },
+      fileManager: {
+        async processFrontMatter(_file: unknown, callback: (value: Record<string, unknown>) => void) {
+          callback(frontmatter);
+        },
+      },
+    } as any;
+
+    const result = await cleanupLegacyMetadataNotes(app, [""], {
+      apiIntervalMs: 0,
+      enrich: async (source) => ({
+        ...source,
+        startDate: { year: 2026, month: 6, day: 30 },
+        classification: {
+          anilistId: "196219",
+          genres: ["戀愛"],
+          tags: [],
+          season: "summer",
+          seasonYear: 2026,
+          studios: ["MagicBus"],
+          source: "LIGHT_NOVEL",
+          countryOfOrigin: "JP",
+        },
+      }),
+    });
+
+    assert.equal(frontmatter.season, "summer");
+    assert.equal(frontmatter.season_year, 2026);
+    assert.ok(result.details[0]?.changes.includes("season"));
   });
 });

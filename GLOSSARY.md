@@ -50,3 +50,14 @@ _Avoid_: File purge, Trash empty
 The administrative toolset for one-time migrations required by newer plugin versions, such as note filename-title reconciliation, duplicate embedded cover cleanup, and legacy metadata schema upgrades.
 _Avoid_: Migration center, Legacy fix
 
+## Media Classification & Scheduling
+
+**Anime Broadcasting Season (番组档期)**:
+The industry broadcast quarter (winter/Q1, spring/Q2, summer/Q3, fall/Q4) governing when an anime program is scheduled and promoted, taking precedence over strict Gregorian calendar months when boundary dates diverge.
+_Avoid_: Calendar quarter, Financial quarter, Release month
+
+**Season Resolution Precedence (档期解析优先级)**:
+The deterministic hierarchy for anime season and season year resolution: provider explicit season overrides tag-inferred season, which in turn overrides release date calendar month fallback.
+_Avoid_: Month-first resolution, Calendar override
+
+

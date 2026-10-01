@@ -8,7 +8,7 @@ import type {
   LegacyMetadataEnrichmentStatus,
 } from "../domain/legacy-metadata-types";
 import { asArray, numeric, stringValue } from "../domain/value-normalization";
-import { compatibleGenres, compatibleSeasonMetadata, compatibleSourceGenres, compatibleStudios, legacyClassificationKeys, legacySelectedClassificationTags, migrateLegacyClassificationHeaders } from "./media-frontmatter-compat";
+import { compatibleGenres, compatibleSeasonMetadata, compatibleSourceGenres, compatibleStudios, legacyClassificationKeys, legacySelectedClassificationTags, migrateLegacyClassificationHeaders, seasonMetadataFromValues } from "./media-frontmatter-compat";
 import { CURRENT_MEDIA_SCHEMA_VERSION } from "../app/schema-migration";
 import { getScopedMarkdownFiles } from "./vault-scope";
 
@@ -150,6 +150,9 @@ function needsMetadataUpgrade(frontmatter: Record<string, unknown>): boolean {
   if (frontmatter.media_type !== "anime") return false;
   const season = compatibleSeasonMetadata(frontmatter);
   if (!season.season || season.seasonYear === null) return true;
+  const inferred = seasonMetadataFromValues(compatibleSourceGenres(frontmatter), frontmatter.year);
+  if (inferred.season && inferred.season !== season.season) return true;
+  if (inferred.seasonYear !== null && inferred.seasonYear !== season.seasonYear) return true;
   return compatibleStudios(frontmatter).length === 0;
 }
 
@@ -245,6 +248,7 @@ function applyAnimeQuarter(
     seasonYear: classification?.seasonYear,
     startDate: enriched.startDate,
     fallbackYear: enriched.year,
+    tagValues: [...strings(frontmatter.source_genres), ...enriched.rawGenres],
   });
   if (!season.season) return [];
   const changes: string[] = [];

@@ -1,4 +1,4 @@
-import { normalizeAniListClassification } from "../domain/media-classification";
+import { mediaSeasonFromTagValues, normalizeAniListClassification, type MediaClassification } from "../domain/media-classification";
 import { normalizeAnimeStudios, normalizeBroadGenres, normalizeGenres, normalizeStructuredAnimationStudios } from "../domain/media-metadata";
 import type { ExternalMediaResult, MediaType } from "../domain/media-types";
 import { asArray, numeric, stringValue } from "../domain/value-normalization";
@@ -159,6 +159,21 @@ export function normalizeBangumiSubject(value: unknown, mediaType: MediaType): E
     .map((tag) => typeof tag === "string" ? tag : stringValue(record(tag).name))
     .filter(Boolean);
   const genres = normalizeBroadGenres(providerTags);
+  const bangumiSeason = mediaType === "anime"
+    ? mediaSeasonFromTagValues(providerTags, yearValue(date.slice(0, 4)))
+    : null;
+  const bangumiClassification: MediaClassification | undefined = bangumiSeason?.season
+    ? {
+        anilistId: "",
+        genres: [],
+        tags: [],
+        season: bangumiSeason.season,
+        seasonYear: bangumiSeason.seasonYear,
+        studios: people,
+        source: "",
+        countryOfOrigin: "JP",
+      }
+    : undefined;
   const subjectId = stringValue(subject.id);
   const rating = record(subject.rating);
   return {
@@ -188,6 +203,7 @@ export function normalizeBangumiSubject(value: unknown, mediaType: MediaType): E
       ...bangumiInfoboxValues(subject.infobox, ["别名", "別名", "中文名", "简体中文名", "簡體中文名", "繁体中文名", "繁體中文名"]),
     ].map((title) => title.trim()).filter(Boolean))],
     sources: subjectId ? [{ provider: "bangumi", sourceId: subjectId, sourceUrl: `https://bgm.tv/subject/${subjectId}` }] : [],
+    ...(bangumiClassification ? { classification: bangumiClassification } : {}),
   };
 }
 

@@ -33,6 +33,7 @@ export const TEST_TARGETS = [
   { path: "tests/media-asset-cleanup.test.ts", kind: "test", suite: "unit", features: ["covers", "image-sections", "moments", "markdown"] },
   { path: "tests/vault-trash.test.ts", kind: "test", suite: "unit", features: ["covers", "image-sections"] },
   { path: "tests/bangumi-sync.test.ts", kind: "test", suite: "unit", features: ["bangumi-sync", "settings"] },
+  { path: "tests/bangumi-writeback-domain.test.ts", kind: "test", suite: "unit", features: ["bangumi-sync"] },
   { path: "tests/media-form-lifecycle.test.ts", kind: "test", suite: "unit", features: ["serial-covers", "settings"] },
   { path: "tests/image-gallery.test.ts", kind: "test", suite: "unit", features: ["image-gallery", "image-sections", "markdown"] },
   { path: "tests/contracts/image-gallery-service.test.ts", kind: "test", suite: "contract", features: ["image-gallery", "image-sections", "markdown", "library"] },

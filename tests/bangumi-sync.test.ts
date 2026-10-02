@@ -16,12 +16,15 @@ import { extractBangumiSubjectId } from "../src/domain/bangumi-sync/subject-matc
 import { reconcileSingleItem } from "../src/domain/bangumi-sync/reconcile";
 import { validateMediaNoteForm } from "../src/data/media-note-codec";
 import { BangumiSyncService } from "../src/data/bangumi-sync/bangumi-sync-service";
+import { bangumiSyncFeature } from "../src/features/bangumi-sync/feature";
+import { decorateBangumiDetail } from "../src/features/bangumi-sync/detail";
 import { TFile, TFolder } from "obsidian";
 import type { ExternalMediaResult, MediaNoteForm } from "../src/domain/media-types";
 
 describe("Bangumi sync settings defaults and normalization", () => {
   it("provides correct default settings", () => {
     assert.equal(DEFAULT_SETTINGS.bangumiAccessToken, "");
+    assert.equal(DEFAULT_SETTINGS.bangumiPushOnEdit, true);
     assert.equal(DEFAULT_SETTINGS.syncRecentDays, DEFAULT_SYNC_RECENT_DAYS);
     assert.deepEqual(DEFAULT_SETTINGS.syncCollectionTypes, DEFAULT_BANGUMI_COLLECTION_TYPES);
     assert.equal(DEFAULT_SETTINGS.autoSyncOnStartup, false);
@@ -32,6 +35,7 @@ describe("Bangumi sync settings defaults and normalization", () => {
   it("normalizes settings safely", () => {
     const normalized = normalizeAnimeListSettings({
       bangumiAccessToken: "  token_xyz  ",
+      bangumiPushOnEdit: false,
       syncRecentDays: 14.8,
       syncCollectionTypes: ["watching", "invalid_type", "watching", "dropped"],
       autoSyncOnStartup: true,
@@ -40,6 +44,7 @@ describe("Bangumi sync settings defaults and normalization", () => {
     });
 
     assert.equal(normalized.bangumiAccessToken, "token_xyz");
+    assert.equal(normalized.bangumiPushOnEdit, false);
     assert.equal(normalized.syncRecentDays, 15);
     assert.deepEqual(normalized.syncCollectionTypes, ["watching", "dropped"]);
     assert.equal(normalized.autoSyncOnStartup, true);
@@ -50,6 +55,7 @@ describe("Bangumi sync settings defaults and normalization", () => {
   it("falls back to defaults for invalid settings values", () => {
     const normalized = normalizeAnimeListSettings({
       bangumiAccessToken: 12345,
+      bangumiPushOnEdit: "yes",
       syncRecentDays: -5,
       syncCollectionTypes: ["invalid_only"],
       autoSyncOnStartup: "yes",
@@ -58,6 +64,7 @@ describe("Bangumi sync settings defaults and normalization", () => {
     });
 
     assert.equal(normalized.bangumiAccessToken, "");
+    assert.equal(normalized.bangumiPushOnEdit, true);
     assert.equal(normalized.syncRecentDays, 30);
     assert.deepEqual(normalized.syncCollectionTypes, ["watching", "completed"]);
     assert.equal(normalized.autoSyncOnStartup, false);
@@ -234,6 +241,60 @@ describe("BangumiSyncClient connection verification", () => {
     assert.ok(item !== null);
     assert.equal(item?.subject_id, 12345);
     assert.ok(requestedUrls.includes("https://api.bgm.tv/v0/users/kougami/collections/12345"));
+  });
+});
+
+describe("BangumiSyncClient.upsertCollection and postCollection", () => {
+  it("sends PATCH when subject already exists", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchUrl = "";
+    let patchMethod = "";
+    let patchBody = "";
+
+    setRequestUrlMock((options) => {
+      patchUrl = options.url;
+      patchMethod = options.method;
+      patchBody = options.body;
+      return { status: 200, json: {} };
+    });
+
+    await client.upsertCollection("test_token", 9999, { type: 3, ep_status: 5, rate: 8 });
+    assert.equal(patchUrl, "https://api.bgm.tv/v0/users/-/collections/9999");
+    assert.equal(patchMethod, "PATCH");
+    assert.deepEqual(JSON.parse(patchBody), { type: 3, ep_status: 5, rate: 8 });
+  });
+
+  it("falls back to POST when PATCH returns 404 (uncollected)", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const requests: Array<{ method: string; url: string; body: string }> = [];
+
+    setRequestUrlMock((options) => {
+      requests.push({ method: options.method, url: options.url, body: options.body });
+      if (options.method === "PATCH") {
+        return { status: 404, json: { title: "Not Found" } };
+      }
+      if (options.method === "POST") {
+        return { status: 201, json: {} };
+      }
+      return { status: 200 };
+    });
+
+    await client.upsertCollection("test_token", 9999, { type: 2, ep_status: 12, rate: 9 });
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].method, "PATCH");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].url, "https://api.bgm.tv/v0/users/-/collections/9999");
+    assert.deepEqual(JSON.parse(requests[1].body), { type: 2, ep_status: 12, rate: 9 });
+  });
+
+  it("throws 401 when token is invalid or expired", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    setRequestUrlMock(() => ({ status: 401, json: { title: "Unauthorized" } }));
+
+    await assert.rejects(
+      () => client.upsertCollection("expired_token", 9999, { type: 3 }),
+      (err: Error) => err.message.includes("401 Unauthorized"),
+    );
   });
 });
 
@@ -987,5 +1048,290 @@ describe("BangumiSyncService.executeStartupAutoSync", () => {
     assert.equal(updatedFrontmatters[existingFile.path].progress, 12);
     assert.equal(settingsSaved, true);
     assert.ok(settings.lastSyncTimestamp >= now);
+  });
+});
+
+describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
+  function createHarness(initialFm: Record<string, unknown>, settingsOverride = {}) {
+    const file = new TFile();
+    file.path = "AnimeList/Anime/PushTest.md";
+    file.basename = "PushTest";
+    const frontmatter = { ...initialFm };
+    const app = {
+      vault: {
+        getAbstractFileByPath(path: string) { return path === file.path ? file : null; },
+      },
+      metadataCache: {
+        getFileCache(target: TFile) { return target === file ? { frontmatter } : null; },
+      },
+      fileManager: {
+        async processFrontMatter(target: TFile, apply: (value: Record<string, unknown>) => void) {
+          apply(frontmatter);
+        },
+      },
+    };
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      bangumiAccessToken: "valid_test_token",
+      ...settingsOverride,
+    };
+    return { app: app as any, file, frontmatter, settings };
+  }
+
+  it("pushes anime note data authoritatively to Bangumi", async () => {
+    const { app, file, settings } = createHarness({
+      title: "Sousou no Frieren",
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "completed",
+      progress: 28,
+      score: 10,
+    });
+
+    let sentPayload: any = null;
+    let sentMethod = "";
+    setRequestUrlMock((options) => {
+      sentMethod = options.method;
+      sentPayload = JSON.parse(options.body);
+      return { status: 200, json: {} };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.equal(result.subjectId, 4001);
+    assert.equal(sentMethod, "PATCH");
+    assert.deepEqual(sentPayload, { type: 2, ep_status: 28, rate: 10 });
+  });
+
+  it("creates collection via POST fallback when subject is uncollected (404)", async () => {
+    const { app, file, settings } = createHarness({
+      title: "New Uncollected Anime",
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: 4002,
+      status: "ongoing",
+      progress: 3,
+      score: 8,
+    });
+
+    const methods: string[] = [];
+    setRequestUrlMock((options) => {
+      methods.push(options.method);
+      if (options.method === "PATCH") return { status: 404 };
+      if (options.method === "POST") return { status: 200 };
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.deepEqual(methods, ["PATCH", "POST"]);
+  });
+
+  it("fails gracefully and surfaces error on network failure", async () => {
+    const { app, file, settings } = createHarness({
+      title: "Failing Anime",
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: 4003,
+      status: "ongoing",
+      progress: 1,
+    });
+
+    setRequestUrlMock(() => {
+      throw new Error("Network offline");
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "error");
+    assert.ok(result.message.includes("Network offline"));
+  });
+
+  it("refuses to push when note is not an anime", async () => {
+    const { app, file, settings } = createHarness({
+      title: "Chainsaw Man Manga",
+      media_type: "manga",
+      source_provider: "bangumi",
+      source_id: 5001,
+      status: "ongoing",
+      progress: 50,
+    });
+
+    let networkCalled = false;
+    setRequestUrlMock(() => {
+      networkCalled = true;
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "error");
+    assert.equal(result.message, "Not an anime note");
+    assert.equal(networkCalled, false);
+  });
+
+  it("refuses to push when note has no Bangumi subject ID", async () => {
+    const { app, file, settings } = createHarness({
+      title: "No ID Anime",
+      media_type: "anime",
+      status: "ongoing",
+      progress: 1,
+    });
+
+    let networkCalled = false;
+    setRequestUrlMock(() => {
+      networkCalled = true;
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "error");
+    assert.equal(result.message, "No Bangumi subject ID found");
+    assert.equal(networkCalled, false);
+  });
+
+  it("returns error when token is not configured", async () => {
+    const { app, file, settings } = createHarness(
+      { title: "No Token Anime", source_provider: "bangumi", source_id: 123 },
+      { bangumiAccessToken: "" },
+    );
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "error");
+    assert.equal(result.message, "Token not configured");
+  });
+});
+
+describe("bangumiSyncFeature commands and lifecycle", () => {
+  it("registers push command and sync command upon activation", () => {
+    const commands: any[] = [];
+    const host = {
+      settings: DEFAULT_SETTINGS,
+      addCommand(cmd: any) { commands.push(cmd); },
+      registerEvent() {},
+      register() {},
+      syncBangumiCurrentAnime: async () => {},
+      pushBangumiCurrentAnime: async () => {},
+      app: { workspace: { on() {} } },
+    };
+
+    const lifecycle = bangumiSyncFeature.contributions.find((c) => c.kind === "lifecycle");
+    assert.ok(lifecycle);
+    lifecycle.activate(host as any);
+
+    const pushCmd = commands.find((c) => c.id === "bangumi-push-current");
+    assert.ok(pushCmd, "Push command must be registered");
+    const syncCmd = commands.find((c) => c.id === "bangumi-sync-current");
+    assert.ok(syncCmd, "Sync command must be registered");
+  });
+
+  it("decorates detail card with push button alongside sync button", () => {
+    class FakeNode {
+      tagName: string;
+      className = "";
+      textContent = "";
+      type = "";
+      title = "";
+      children: FakeNode[] = [];
+      parentElement: FakeNode | null = null;
+      attributes: Record<string, string> = {};
+      listeners: Record<string, Function[]> = {};
+
+      constructor(tag: string) {
+        this.tagName = tag.toUpperCase();
+      }
+
+      setAttribute(k: string, v: string) { this.attributes[k] = v; }
+      getAttribute(k: string) { return this.attributes[k]; }
+      appendChild(child: FakeNode) {
+        child.parentElement = this;
+        this.children.push(child);
+        return child;
+      }
+      insertBefore(newChild: FakeNode, refChild: FakeNode | null) {
+        const idx = refChild ? this.children.indexOf(refChild) : -1;
+        if (idx >= 0) {
+          newChild.parentElement = this;
+          this.children.splice(idx, 0, newChild);
+        } else {
+          this.appendChild(newChild);
+        }
+        return newChild;
+      }
+      addEventListener(event: string, fn: Function) {
+        (this.listeners[event] ??= []).push(fn);
+      }
+      click() {
+        for (const fn of this.listeners.click ?? []) {
+          fn({ preventDefault() {}, stopPropagation() {} });
+        }
+      }
+      querySelector(sel: string): FakeNode | null {
+        for (const c of this.children) {
+          if (sel.startsWith(".") && c.className.split(" ").includes(sel.slice(1))) return c;
+          const found = c.querySelector(sel);
+          if (found) return found;
+        }
+        return null;
+      }
+    }
+
+    const previousCreateEl = (globalThis as any).createEl;
+    (globalThis as any).createEl = (tag: string) => new FakeNode(tag);
+
+    try {
+      const container = new FakeNode("div");
+      const buttons = new FakeNode("div");
+      buttons.className = "al-detail-buttons";
+      const more = new FakeNode("button");
+      more.className = "al-detail-more";
+      buttons.appendChild(more);
+      container.appendChild(buttons);
+
+      let pushed = false;
+      const host = {
+        app: {
+          vault: {
+            getAbstractFileByPath: () => new TFile(),
+          },
+        },
+        pushBangumiNote: async () => { pushed = true; },
+        syncBangumiNote: async () => {},
+      };
+
+      decorateBangumiDetail(
+        host as any,
+        container as any,
+        "AnimeList/Anime/Frieren.md",
+        { source_provider: "bangumi", source_id: 12345 },
+      );
+
+      const pushBtn = buttons.querySelector(".al-detail-bangumi-push");
+      const syncBtn = buttons.querySelector(".al-detail-bangumi-sync");
+      assert.ok(pushBtn !== null, "Push button should be created");
+      assert.ok(syncBtn !== null, "Sync button should be created");
+
+      pushBtn?.click();
+      assert.equal(pushed, true);
+    } finally {
+      (globalThis as any).createEl = previousCreateEl;
+    }
   });
 });

@@ -21,7 +21,7 @@ import type {
 import type { SearchRenderContext } from "../ui/search-contracts";
 import type { WorkspaceMenuAction, WorkspacePageDefinition } from "../ui/workspace-contracts";
 import type { LibrarySection } from "../domain/settings-types";
-import type { BangumiSyncService, SingleSyncResult } from "../data/bangumi-sync/bangumi-sync-service";
+import type { BangumiSyncService, SinglePushResult, SingleSyncResult } from "../data/bangumi-sync/bangumi-sync-service";
 
 export interface FeatureSettingsSection {
   page?: SettingsPageId;
@@ -57,6 +57,8 @@ export interface AnimeListFeatureHost extends Pick<
   bangumiSyncService(): BangumiSyncService;
   syncBangumiCurrentAnime(): Promise<void>;
   syncBangumiNote(file: TFile): Promise<SingleSyncResult>;
+  pushBangumiCurrentAnime(): Promise<void>;
+  pushBangumiNote(file: TFile): Promise<SinglePushResult>;
 }
 
 export interface FavoriteActionContext<Host extends AnimeListFeatureHost> {

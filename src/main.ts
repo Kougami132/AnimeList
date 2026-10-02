@@ -356,6 +356,19 @@ export class AnimeListPlugin extends Plugin implements AnimeListUiHost {
   async syncBangumiNote(file: TFile): Promise<Awaited<ReturnType<ReturnType<AnimeListApplicationServices["bangumiSync"]>["syncSingleNote"]>>> {
     return this.bangumiSyncService().syncSingleNote(file);
   }
+
+  async pushBangumiCurrentAnime(): Promise<void> {
+    const file = this.app.workspace.getActiveFile();
+    if (!file) {
+      new Notice("No active file selected.");
+      return;
+    }
+    await this.bangumiSyncService().pushSingleNote(file);
+  }
+
+  async pushBangumiNote(file: TFile): Promise<Awaited<ReturnType<ReturnType<AnimeListApplicationServices["bangumiSync"]>["pushSingleNote"]>>> {
+    return this.bangumiSyncService().pushSingleNote(file);
+  }
 }
 
 export default AnimeListPlugin;

@@ -392,4 +392,225 @@ describe("media update service", () => {
     assert.equal(frontmatter.title, "Old title");
     assert.equal(refreshes, 0);
   });
+
+  it("triggers automatic push to Bangumi when progress, status, or score changes", async () => {
+    const file = new TFile();
+    setFilePath(file, "AnimeList/Anime/Frieren.md");
+    const frontmatter: Record<string, unknown> = {
+      media_type: "anime",
+      title: "Sousou no Frieren",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 10,
+      score: 9,
+    };
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      fileManager: {
+        processFrontMatter: async (_file: TFile, update: (value: Record<string, unknown>) => void) => update(frontmatter),
+      },
+    } as unknown as App;
+
+    const pushedData: Array<{ subjectId: number; title: string; data: any }> = [];
+    const mockWriteback = {
+      async pushAnimeData(subjectId: number, title: string, data: any) {
+        pushedData.push({ subjectId, title, data });
+      },
+    };
+
+    const form = animeForm();
+    form.title = "Sousou no Frieren";
+    form.status = "completed";
+    form.progress = 28;
+    form.total = 28;
+    form.score = 10;
+    form.completedAt = "2024-03-22";
+
+    const service = new MediaUpdateService(
+      app,
+      { refreshViews: () => undefined },
+      mockWriteback,
+      () => true,
+    );
+
+    await service.update(file, "anime", form);
+
+    assert.equal(pushedData.length, 1);
+    assert.equal(pushedData[0].subjectId, 4001);
+    assert.equal(pushedData[0].data.status, "completed");
+    assert.equal(pushedData[0].data.progress, 28);
+    assert.equal(pushedData[0].data.score, 10);
+    assert.equal(frontmatter.status, "completed");
+    assert.equal(frontmatter.progress, 28);
+    assert.equal(frontmatter.score, 10);
+  });
+
+  it("skips push to Bangumi when only title, tags, or non-progress fields change (dirty check)", async () => {
+    const file = new TFile();
+    setFilePath(file, "AnimeList/Anime/Frieren.md");
+    const frontmatter: Record<string, unknown> = {
+      media_type: "anime",
+      title: "Sousou no Frieren",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 10,
+      score: 9,
+      tags: ["fantasy"],
+    };
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      fileManager: {
+        processFrontMatter: async (_file: TFile, update: (value: Record<string, unknown>) => void) => update(frontmatter),
+      },
+    } as unknown as App;
+
+    let pushCalls = 0;
+    const mockWriteback = {
+      async pushAnimeData() { pushCalls += 1; },
+    };
+
+    const form = animeForm();
+    form.title = "Sousou no Frieren";
+    form.status = "ongoing";
+    form.progress = 10;
+    form.score = 9;
+    form.genres = ["冒險", "奇幻"];
+
+    const service = new MediaUpdateService(
+      app,
+      { refreshViews: () => undefined },
+      mockWriteback,
+      () => true,
+    );
+
+    await service.update(file, "anime", form);
+
+    assert.equal(pushCalls, 0, "Must not push when progress/status/score are unchanged");
+  });
+
+  it("guarantees local persistence precedence even when Bangumi push fails", async () => {
+    const file = new TFile();
+    setFilePath(file, "AnimeList/Anime/Frieren.md");
+    const frontmatter: Record<string, unknown> = {
+      media_type: "anime",
+      title: "Sousou no Frieren",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 5,
+    };
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      fileManager: {
+        processFrontMatter: async (_file: TFile, update: (value: Record<string, unknown>) => void) => update(frontmatter),
+      },
+    } as unknown as App;
+
+    const mockWriteback = {
+      async pushAnimeData() { throw new Error("Bangumi API 500 Internal Error"); },
+    };
+
+    const form = animeForm();
+    form.title = "Sousou no Frieren";
+    form.status = "ongoing";
+    form.progress = 6;
+    form.score = "";
+
+    const service = new MediaUpdateService(
+      app,
+      { refreshViews: () => undefined },
+      mockWriteback,
+      () => true,
+    );
+
+    await service.update(file, "anime", form);
+
+    assert.equal(frontmatter.progress, 6);
+  });
+
+  it("skips push when pushOnEdit is disabled in settings", async () => {
+    const file = new TFile();
+    setFilePath(file, "AnimeList/Anime/Frieren.md");
+    const frontmatter: Record<string, unknown> = {
+      media_type: "anime",
+      title: "Sousou no Frieren",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 5,
+    };
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      fileManager: {
+        processFrontMatter: async (_file: TFile, update: (value: Record<string, unknown>) => void) => update(frontmatter),
+      },
+    } as unknown as App;
+
+    let pushCalls = 0;
+    const mockWriteback = {
+      async pushAnimeData() { pushCalls += 1; },
+    };
+
+    const form = animeForm();
+    form.title = "Sousou no Frieren";
+    form.status = "ongoing";
+    form.progress = 10;
+    form.score = "";
+
+    const service = new MediaUpdateService(
+      app,
+      { refreshViews: () => undefined },
+      mockWriteback,
+      () => false,
+    );
+
+    await service.update(file, "anime", form);
+
+    assert.equal(pushCalls, 0);
+    assert.equal(frontmatter.progress, 10);
+  });
+
+  it("skips push for non-anime media types", async () => {
+    const file = new TFile();
+    setFilePath(file, "AnimeList/Manga/MangaShow.md");
+    const frontmatter: Record<string, unknown> = {
+      media_type: "manga",
+      title: "Manga Show",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 5,
+    };
+    const app = {
+      metadataCache: { getFileCache: () => ({ frontmatter }) },
+      fileManager: {
+        processFrontMatter: async (_file: TFile, update: (value: Record<string, unknown>) => void) => update(frontmatter),
+      },
+    } as unknown as App;
+
+    let pushCalls = 0;
+    const mockWriteback = {
+      async pushAnimeData() { pushCalls += 1; },
+    };
+
+    const form = animeForm();
+    form.title = "Manga Show";
+    form.status = "ongoing";
+    form.progress = 10;
+    form.score = "";
+
+    const service = new MediaUpdateService(
+      app,
+      { refreshViews: () => undefined },
+      mockWriteback,
+      () => true,
+    );
+
+    await service.update(file, "manga", form);
+
+    assert.equal(pushCalls, 0, "Must not push for manga");
+    assert.equal(frontmatter.progress, 10);
+  });
 });

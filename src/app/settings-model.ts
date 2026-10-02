@@ -70,6 +70,7 @@ export const DEFAULT_SETTINGS: AnimeListSettings = {
     layoutColumns: normalizeLibraryLayoutColumns(undefined),
   },
   bangumiAccessToken: "",
+  bangumiPushOnEdit: true,
   syncRecentDays: DEFAULT_SYNC_RECENT_DAYS,
   syncCollectionTypes: [...DEFAULT_BANGUMI_COLLECTION_TYPES],
   autoSyncOnStartup: false,
@@ -151,6 +152,9 @@ export function normalizeAnimeListSettings(value: unknown): AnimeListSettings {
     bangumiAccessToken: typeof loaded.bangumiAccessToken === "string"
       ? loaded.bangumiAccessToken.trim()
       : DEFAULT_SETTINGS.bangumiAccessToken,
+    bangumiPushOnEdit: typeof loaded.bangumiPushOnEdit === "boolean"
+      ? loaded.bangumiPushOnEdit
+      : DEFAULT_SETTINGS.bangumiPushOnEdit,
     syncRecentDays: typeof loaded.syncRecentDays === "number" && Number.isFinite(loaded.syncRecentDays) && loaded.syncRecentDays > 0
       ? Math.round(loaded.syncRecentDays)
       : DEFAULT_SETTINGS.syncRecentDays,

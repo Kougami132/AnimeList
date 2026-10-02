@@ -8,6 +8,11 @@ import {
   bangumiTypeNumberToStatus,
 } from "../../domain/bangumi-sync/types";
 import { extractBangumiSubjectId } from "../../domain/bangumi-sync/subject-matching";
+import {
+  mediaStatusToBangumiTypeNumber,
+  mapProgressToEpStatus,
+  mapScoreToBangumiRate,
+} from "../../domain/bangumi-sync/writeback";
 import { reconcileSingleItem, type LocalMediaState, type RemoteBangumiState } from "../../domain/bangumi-sync/reconcile";
 import { BangumiSyncClient, type BangumiCollectionResponseItem } from "./bangumi-sync-client";
 import { buildMediaMarkdown } from "../media-note-codec";
@@ -16,6 +21,7 @@ import { slugify } from "../../domain/value-normalization";
 import { normalizeBangumiSubject } from "../provider-normalizers";
 import { requestUrl } from "obsidian";
 import { USER_AGENT } from "../../app-metadata";
+import { catalogText } from "../../i18n/catalog";
 
 export interface BangumiSyncCallbacks {
   refreshViews(): void;
@@ -28,8 +34,20 @@ export type SingleSyncResult =
   | { kind: "not_collected"; subjectId: number; title: string }
   | { kind: "error"; subjectId: number; title: string; message: string };
 
+export type SinglePushResult =
+  | { kind: "success"; subjectId: number; title: string }
+  | { kind: "error"; subjectId: number; title: string; message: string };
+
 function titleString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function bangumiText(key: string, variables: Record<string, string | number> = {}): string {
+  try {
+    return catalogText("bangumi-sync", key, variables);
+  } catch {
+    return key;
+  }
 }
 
 export class BangumiSyncService {
@@ -149,6 +167,74 @@ export class BangumiSyncService {
       new Notice(`Bangumi sync failed for "${title}": ${message}`);
       return { kind: "error", subjectId, title, message };
     }
+  }
+
+  async pushAnimeData(
+    subjectId: number,
+    title: string,
+    data: { status: string; progress: number; score: number | null },
+  ): Promise<SinglePushResult> {
+    const token = this.settings().bangumiAccessToken.trim();
+    if (!token) {
+      new Notice(bangumiText("notice.notConfigured"));
+      return { kind: "error", subjectId, title, message: "Token not configured" };
+    }
+
+    const type = mediaStatusToBangumiTypeNumber(data.status);
+    const ep_status = mapProgressToEpStatus(data.progress);
+    const rate = mapScoreToBangumiRate(data.score);
+
+    const payload: { type?: number; ep_status: number; rate: number } = {
+      ep_status,
+      rate,
+    };
+    if (type !== null) {
+      payload.type = type;
+    }
+
+    try {
+      await this.client.upsertCollection(token, subjectId, payload);
+      new Notice(bangumiText("notice.pushSuccess", { title }));
+      return { kind: "success", subjectId, title };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Push failed";
+      new Notice(bangumiText("notice.pushFailed", { title, error: message }));
+      return { kind: "error", subjectId, title, message };
+    }
+  }
+
+  async pushSingleNote(file: TFile): Promise<SinglePushResult> {
+    const token = this.settings().bangumiAccessToken.trim();
+    if (!token) {
+      new Notice(bangumiText("notice.notConfigured"));
+      return { kind: "error", subjectId: 0, title: file.basename, message: "Token not configured" };
+    }
+
+    const cache = this.app.metadataCache.getFileCache(file);
+    const fm = cache?.frontmatter;
+    const title = titleString(fm?.title, file.basename);
+
+    if (!fm) {
+      new Notice(bangumiText("notice.noBangumiId", { title }));
+      return { kind: "error", subjectId: 0, title, message: "No frontmatter found" };
+    }
+
+    if (fm.media_type && fm.media_type !== "anime") {
+      new Notice(bangumiText("notice.notAnime", { title }));
+      return { kind: "error", subjectId: 0, title, message: "Not an anime note" };
+    }
+
+    const subjectId = extractBangumiSubjectId(fm);
+    if (!subjectId) {
+      new Notice(bangumiText("notice.noBangumiId", { title }));
+      return { kind: "error", subjectId: 0, title, message: "No Bangumi subject ID found" };
+    }
+
+    return this.pushAnimeData(subjectId, title, {
+      status: typeof fm.status === "string" ? fm.status : "",
+      progress: typeof fm.progress === "number" ? fm.progress : 0,
+      score: typeof fm.score === "number" && fm.score > 0 ? fm.score : null,
+    });
   }
 
   async fetchRecentCollections(

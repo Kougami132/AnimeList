@@ -78,6 +78,22 @@ export function defineTextCatalog<const T extends TextMessages>(
   };
 }
 
+export function catalogText(
+  namespace: string,
+  key: string,
+  variables: TextVariables = {},
+): string {
+  const state = CATALOGS.get(namespace);
+  if (!state) throw new Error(`Unknown text catalog namespace: ${namespace}`);
+  const localized = state.messagesByLocale.get(activeLocale);
+  const fallback = state.messagesByLocale.get(state.defaultLocale) ?? {};
+  const template = localized?.[key] ?? fallback[key];
+  if (typeof template !== "string") {
+    throw new Error(`Missing text key ${namespace}.${key} for locale ${activeLocale}`);
+  }
+  return interpolateText(template, variables);
+}
+
 export function resetLocaleForTests(): void {
   activeLocale = "zh-CN";
 }

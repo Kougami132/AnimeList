@@ -89,6 +89,19 @@ export function createBangumiSyncSettingsSection(
         },
       },
       {
+        name: "编辑时自动回写",
+        desc: "在 AnimeList 编辑弹窗中修改动画的在看进度、观看状态或评分并保存后，自动推送更新至 Bangumi。",
+        render: (setting: Setting) => {
+          setting.addToggle((toggle) => {
+            toggle.setValue(host.settings.bangumiPushOnEdit);
+            toggle.onChange(async (val) => {
+              host.settings.bangumiPushOnEdit = val;
+              await host.saveSettings();
+            });
+          });
+        },
+      },
+      {
         name: "同步时间窗口 (天)",
         desc: "获取近期更新收藏的滚动时间范围天数（默认 30 天）。",
         render: (setting: Setting) => {

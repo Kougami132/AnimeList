@@ -264,6 +264,78 @@ export class BangumiSyncClient {
     }
   }
 
+  async postCollection(
+    token: string,
+    subjectId: number,
+    data: { rate?: number; ep_status?: number; type?: number },
+  ): Promise<void> {
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    await this.throttle();
+    const response = await requestWithTimeout({
+      url: `${BANGUMI_API_BASE}/users/-/collections/${subjectId}`,
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${trimmed}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (response.status !== 200 && response.status !== 201 && response.status !== 204) {
+      if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
+      throw new Error(`Bangumi API error: HTTP ${response.status}`);
+    }
+  }
+
+  async upsertCollection(
+    token: string,
+    subjectId: number,
+    data: { rate?: number; ep_status?: number; type?: number },
+  ): Promise<void> {
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    await this.throttle();
+    let is404 = false;
+    try {
+      const response = await requestWithTimeout({
+        url: `${BANGUMI_API_BASE}/users/-/collections/${subjectId}`,
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${trimmed}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "User-Agent": USER_AGENT,
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.status === 404) {
+        is404 = true;
+      } else if (response.status !== 200 && response.status !== 204) {
+        if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
+        throw new Error(`Bangumi API error: HTTP ${response.status}`);
+      }
+    } catch (error) {
+      if (
+        (error && typeof error === "object" && "status" in error && (error as { status: unknown }).status === 404)
+        || (error instanceof Error && error.message.includes("404"))
+      ) {
+        is404 = true;
+      } else {
+        throw error;
+      }
+    }
+
+    if (is404) {
+      await this.postCollection(token, subjectId, data);
+    }
+  }
+
   async fetchSubject(subjectId: number): Promise<Record<string, unknown> | null> {
     await this.throttle();
     try {

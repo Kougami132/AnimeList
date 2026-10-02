@@ -23,6 +23,14 @@ export const bangumiSyncFeature = defineFeature<AnimeListFeatureHost>({
         });
 
         host.addCommand({
+          id: "bangumi-push-current",
+          name: bangumiSyncText("command.pushCurrent"),
+          callback: async () => {
+            await host.pushBangumiCurrentAnime();
+          },
+        });
+
+        host.addCommand({
           id: "bangumi-batch-sync",
           name: bangumiSyncText("command.batchSync"),
           callback: async () => {
@@ -43,6 +51,15 @@ export const bangumiSyncFeature = defineFeature<AnimeListFeatureHost>({
                 .setIcon("refresh-cw")
                 .onClick(() => {
                   void host.syncBangumiNote(file);
+                });
+            });
+
+            menu.addItem((item) => {
+              item
+                .setTitle(bangumiSyncText("menu.push"))
+                .setIcon("upload")
+                .onClick(() => {
+                  void host.pushBangumiNote(file);
                 });
             });
           }),

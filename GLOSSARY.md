@@ -20,6 +20,15 @@ _Avoid_: Rating mismatch, Score error
 The write-back operation of uploading a local score to Bangumi when Bangumi has no recorded rating for that subject.
 _Avoid_: Rating upload, Score sync
 
+**Bangumi Manual Push (番组手动推送回写)**:
+The operation of pushing local anime progress, watching status, and score directly to Bangumi user collections upon manual form submission or explicit push command, creating collections if they do not exist.
+_Avoid_: Auto file sync, Remote mirror push, File modify hook
+
+**Push On Edit (编辑时自动回写)**:
+The setting and behavior that triggers a Bangumi manual push automatically after saving modifications in the AnimeList edit dialog, subject to dirty checking.
+_Avoid_: Edit listener, Background save hook
+
+
 **Existing Note Sync**:
 An automated sync strategy that only modifies anime notes already present in the vault, ignoring newly discovered Bangumi collections.
 _Avoid_: In-place sync, Shallow sync

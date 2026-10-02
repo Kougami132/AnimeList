@@ -110,7 +110,12 @@ export class AnimeListApplicationServices {
   }
 
   private mediaUpdates(): MediaUpdateService {
-    this.updateService ??= new MediaUpdateService(this.app, { refreshViews: () => this.callbacks.refreshViews() });
+    this.updateService ??= new MediaUpdateService(
+      this.app,
+      { refreshViews: () => this.callbacks.refreshViews() },
+      this.bangumiSync(),
+      () => this.settings().bangumiPushOnEdit,
+    );
     return this.updateService;
   }
 

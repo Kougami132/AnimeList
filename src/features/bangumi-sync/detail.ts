@@ -14,23 +14,45 @@ export function decorateBangumiDetail(
   if (!subjectId) return;
 
   const buttons = container.querySelector(".al-detail-buttons");
-  if (!buttons || buttons.querySelector(".al-detail-bangumi-sync")) return;
-
-  const syncBtn = makeEl("button", "al-detail-bangumi-sync");
-  syncBtn.type = "button";
-  syncBtn.setAttribute("aria-label", bangumiSyncText("detail.syncButton"));
-  syncBtn.title = bangumiSyncText("detail.syncButton");
-  appendIconLabel(syncBtn, "refresh-cw", bangumiSyncText("detail.syncLabel"));
-  syncBtn.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const file = host.app.vault.getAbstractFileByPath(sourcePath);
-    if (file instanceof TFile) {
-      void host.syncBangumiNote(file);
-    }
-  });
+  if (!buttons) return;
 
   const more = buttons.querySelector(".al-detail-more");
-  if (more) buttons.insertBefore(syncBtn, more);
-  else buttons.appendChild(syncBtn);
+
+  if (!buttons.querySelector(".al-detail-bangumi-push")) {
+    const pushBtn = makeEl("button", "al-detail-bangumi-push");
+    pushBtn.type = "button";
+    pushBtn.setAttribute("aria-label", bangumiSyncText("detail.pushButton"));
+    pushBtn.title = bangumiSyncText("detail.pushButton");
+    appendIconLabel(pushBtn, "upload", bangumiSyncText("detail.pushLabel"));
+    pushBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const file = host.app.vault.getAbstractFileByPath(sourcePath);
+      if (file instanceof TFile) {
+        void host.pushBangumiNote(file);
+      }
+    });
+
+    if (more) buttons.insertBefore(pushBtn, more);
+    else buttons.appendChild(pushBtn);
+  }
+
+  if (!buttons.querySelector(".al-detail-bangumi-sync")) {
+    const syncBtn = makeEl("button", "al-detail-bangumi-sync");
+    syncBtn.type = "button";
+    syncBtn.setAttribute("aria-label", bangumiSyncText("detail.syncButton"));
+    syncBtn.title = bangumiSyncText("detail.syncButton");
+    appendIconLabel(syncBtn, "refresh-cw", bangumiSyncText("detail.syncLabel"));
+    syncBtn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const file = host.app.vault.getAbstractFileByPath(sourcePath);
+      if (file instanceof TFile) {
+        void host.syncBangumiNote(file);
+      }
+    });
+
+    if (more) buttons.insertBefore(syncBtn, more);
+    else buttons.appendChild(syncBtn);
+  }
 }

@@ -63,6 +63,7 @@ export interface AnimeListSettings {
   migrations: MigrationSettings;
   uiState: LibraryUiState;
   bangumiAccessToken: string;
+  bangumiPushOnEdit: boolean;
   syncRecentDays: number;
   syncCollectionTypes: BangumiCollectionStatus[];
   autoSyncOnStartup: boolean;

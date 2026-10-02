@@ -124,7 +124,7 @@ export interface ValidatedMediaNoteForm {
   completedAt: string;
 }
 
-function validateMediaNoteFormForType(
+export function validateMediaNoteFormForType(
   mediaType: MediaType,
   form: MediaNoteForm,
   options?: { allowEmptyCompletedScore?: boolean },

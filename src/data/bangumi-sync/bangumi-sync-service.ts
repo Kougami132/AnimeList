@@ -184,8 +184,10 @@ export class BangumiSyncService {
     const ep_status = mapProgressToEpStatus(data.progress);
     const rate = mapScoreToBangumiRate(data.score);
 
-    const payload: { type?: number; ep_status: number; rate: number } = {
-      ep_status,
+    // Bangumi API v0 collection endpoint rejects ep_status and vol_status on non-book subjects with HTTP 400.
+    // Anime collection modification must only include collection fields (type, rate, etc.);
+    // episode progress is updated via the user subject episodes endpoint.
+    const payload: { type?: number; rate: number } = {
       rate,
     };
     if (type !== null) {
@@ -194,6 +196,11 @@ export class BangumiSyncService {
 
     try {
       await this.client.upsertCollection(token, subjectId, payload);
+      try {
+        await this.client.updateAnimeEpisodeProgress(token, subjectId, ep_status, data.status);
+      } catch (epError) {
+        console.warn(`Bangumi episode progress update failed for "${title}":`, epError);
+      }
       new Notice(bangumiText("notice.pushSuccess", { title }));
       return { kind: "success", subjectId, title };
     } catch (error) {

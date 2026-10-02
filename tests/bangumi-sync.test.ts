@@ -296,6 +296,147 @@ describe("BangumiSyncClient.upsertCollection and postCollection", () => {
       (err: Error) => err.message.includes("401 Unauthorized"),
     );
   });
+
+  it("accepts HTTP 202 Accepted on POST collection create", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    setRequestUrlMock((options) => {
+      if (options.method === "PATCH") return { status: 404 };
+      if (options.method === "POST") return { status: 202 };
+      return { status: 200 };
+    });
+
+    await client.upsertCollection("test_token", 8888, { type: 3, rate: 8 });
+  });
+});
+
+describe("BangumiSyncClient episode progress updates", () => {
+  it("fetches user subject episodes and patches unwatched episodes to watched", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const requests: Array<{ method: string; url: string; body?: string }> = [];
+
+    setRequestUrlMock((options) => {
+      requests.push({ method: options.method, url: options.url, body: options.body });
+      if (options.method === "GET" && options.url.includes("/users/-/collections/1001/episodes")) {
+        return {
+          status: 200,
+          json: {
+            total: 3,
+            data: [
+              { episode: { id: 11, sort: 1, type: 0 }, type: 0 },
+              { episode: { id: 12, sort: 2, type: 0 }, type: 0 },
+              { episode: { id: 13, sort: 3, type: 0 }, type: 0 },
+            ],
+          },
+        };
+      }
+      if (options.method === "PATCH" && options.url.includes("/users/-/collections/1001/episodes")) {
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    await client.updateAnimeEpisodeProgress("test_token", 1001, 2);
+
+    const patchReq = requests.find((r) => r.method === "PATCH");
+    assert.ok(patchReq, "Expected a PATCH request for episodes");
+    assert.equal(patchReq.url, "https://api.bgm.tv/v0/users/-/collections/1001/episodes");
+    assert.deepEqual(JSON.parse(patchReq.body!), {
+      episode_id: [11, 12],
+      type: 2,
+    });
+  });
+
+  it("unmarks episodes when progress decreases", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const requests: Array<{ method: string; url: string; body?: string }> = [];
+
+    setRequestUrlMock((options) => {
+      requests.push({ method: options.method, url: options.url, body: options.body });
+      if (options.method === "GET" && options.url.includes("/users/-/collections/1002/episodes")) {
+        return {
+          status: 200,
+          json: {
+            total: 3,
+            data: [
+              { episode: { id: 21, sort: 1, type: 0 }, type: 2 },
+              { episode: { id: 22, sort: 2, type: 0 }, type: 2 },
+              { episode: { id: 23, sort: 3, type: 0 }, type: 2 },
+            ],
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    // Decrease from 3 to 1: episodes 22 and 23 should be unmarked (type 0)
+    await client.updateAnimeEpisodeProgress("test_token", 1002, 1);
+
+    const patchReq = requests.find((r) => r.method === "PATCH");
+    assert.ok(patchReq, "Expected a PATCH request to unmark episodes");
+    assert.deepEqual(JSON.parse(patchReq.body!), {
+      episode_id: [22, 23],
+      type: 0,
+    });
+  });
+
+  it("does not make PATCH requests when episodes are already in desired state", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const patchCalls: any[] = [];
+
+    setRequestUrlMock((options) => {
+      if (options.method === "PATCH") patchCalls.push(options);
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 2,
+            data: [
+              { episode: { id: 31, sort: 1, type: 0 }, type: 2 },
+              { episode: { id: 32, sort: 2, type: 0 }, type: 0 },
+            ],
+          },
+        };
+      }
+      return { status: 200 };
+    });
+
+    await client.updateAnimeEpisodeProgress("test_token", 1003, 1);
+    assert.equal(patchCalls.length, 0, "No PATCH should be sent when progress already matches");
+  });
+
+  it("marks all normal episodes when status is completed and progress is 0", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchBody: any = null;
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 2,
+            data: [
+              { episode: { id: 41, sort: 1, type: 0 }, type: 0 },
+              { episode: { id: 42, sort: 2, type: 0 }, type: 0 },
+            ],
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchBody = JSON.parse(options.body);
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    await client.updateAnimeEpisodeProgress("test_token", 1004, 0, "completed");
+    assert.deepEqual(patchBody, {
+      episode_id: [41, 42],
+      type: 2,
+    });
+  });
 });
 
 describe("extractBangumiSubjectId", () => {
@@ -1193,6 +1334,37 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
     return { app: app as any, file, frontmatter, settings };
   }
 
+  it("successfully pushes anime note without ep_status in collection payload when collection endpoint rejects ep_status", async () => {
+    const { app, file, settings } = createHarness({
+      title: "Sousou no Frieren",
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: 4001,
+      status: "ongoing",
+      progress: 5,
+      score: 8,
+    });
+
+    setRequestUrlMock((options) => {
+      if (options.url.includes("/users/-/collections/") && !options.url.includes("/episodes")) {
+        const body = JSON.parse(options.body || "{}");
+        if (body.ep_status !== undefined || body.vol_status !== undefined) {
+          const err: any = new Error("Request failed, status 400: can't set 'vol_status' or 'ep_status' on non-book subject");
+          err.status = 400;
+          throw err;
+        }
+      }
+      return { status: 200, json: {} };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    // This asserts success, but currently it fails with 400 error because pushAnimeData sends ep_status to collection endpoint!
+    assert.equal(result.kind, "success", `Expected success but got: ${JSON.stringify(result)}`);
+  });
+
   it("pushes anime note data authoritatively to Bangumi", async () => {
     const { app, file, settings } = createHarness({
       title: "Sousou no Frieren",
@@ -1207,8 +1379,10 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
     let sentPayload: any = null;
     let sentMethod = "";
     setRequestUrlMock((options) => {
-      sentMethod = options.method;
-      sentPayload = JSON.parse(options.body);
+      if (options.url.includes("/users/-/collections/") && !options.url.includes("/episodes")) {
+        sentMethod = options.method;
+        sentPayload = JSON.parse(options.body);
+      }
       return { status: 200, json: {} };
     });
 
@@ -1219,7 +1393,7 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
     assert.equal(result.kind, "success");
     assert.equal(result.subjectId, 4001);
     assert.equal(sentMethod, "PATCH");
-    assert.deepEqual(sentPayload, { type: 2, ep_status: 28, rate: 10 });
+    assert.deepEqual(sentPayload, { type: 2, rate: 10 });
   });
 
   it("floors decimal score when pushing to Bangumi (e.g. 9.5 pushes rate 9)", async () => {
@@ -1235,7 +1409,9 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
 
     let sentPayload: any = null;
     setRequestUrlMock((options) => {
-      sentPayload = JSON.parse(options.body);
+      if (options.url.includes("/users/-/collections/") && !options.url.includes("/episodes")) {
+        sentPayload = JSON.parse(options.body);
+      }
       return { status: 200, json: {} };
     });
 
@@ -1244,7 +1420,7 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
 
     const result = await service.pushSingleNote(file);
     assert.equal(result.kind, "success");
-    assert.deepEqual(sentPayload, { type: 2, ep_status: 24, rate: 9 });
+    assert.deepEqual(sentPayload, { type: 2, rate: 9 });
   });
 
   it("creates collection via POST fallback when subject is uncollected (404)", async () => {
@@ -1260,10 +1436,12 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
 
     const methods: string[] = [];
     setRequestUrlMock((options) => {
-      methods.push(options.method);
-      if (options.method === "PATCH") return { status: 404 };
-      if (options.method === "POST") return { status: 200 };
-      return { status: 200 };
+      if (options.url.includes("/users/-/collections/") && !options.url.includes("/episodes")) {
+        methods.push(options.method);
+        if (options.method === "PATCH") return { status: 404 };
+        if (options.method === "POST") return { status: 200 };
+      }
+      return { status: 200, json: {} };
     });
 
     const client = new BangumiSyncClient({ minIntervalMs: 0 });

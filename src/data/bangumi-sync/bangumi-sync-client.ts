@@ -38,6 +38,20 @@ function numProp(obj: Record<string, unknown>, key: string, fallback = 0): numbe
   return fallback;
 }
 
+export interface BangumiEpisodeItem {
+  id: number;
+  sort: number;
+  type: number;
+  ep?: number;
+  name?: string;
+  name_cn?: string;
+}
+
+export interface BangumiUserEpisodeCollectionItem {
+  episode: BangumiEpisodeItem;
+  type: number;
+}
+
 export interface BangumiCollectionResponseItem {
   subject_id: number;
   subject_type: number;
@@ -258,7 +272,7 @@ export class BangumiSyncClient {
       body: JSON.stringify(patch),
     });
 
-    if (response.status !== 200 && response.status !== 204) {
+    if (response.status < 200 || response.status >= 300) {
       if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
       throw new Error(`Bangumi API error: HTTP ${response.status}`);
     }
@@ -285,7 +299,7 @@ export class BangumiSyncClient {
       body: JSON.stringify(data),
     });
 
-    if (response.status !== 200 && response.status !== 201 && response.status !== 204) {
+    if (response.status < 200 || response.status >= 300) {
       if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
       throw new Error(`Bangumi API error: HTTP ${response.status}`);
     }
@@ -316,7 +330,7 @@ export class BangumiSyncClient {
 
       if (response.status === 404) {
         is404 = true;
-      } else if (response.status !== 200 && response.status !== 204) {
+      } else if (response.status < 200 || response.status >= 300) {
         if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
         throw new Error(`Bangumi API error: HTTP ${response.status}`);
       }
@@ -356,6 +370,180 @@ export class BangumiSyncClient {
     } catch (error) {
       if (error instanceof Error && error.message.includes("404")) return null;
       throw error;
+    }
+  }
+
+  async fetchUserSubjectEpisodes(
+    token: string,
+    subjectId: number,
+    options?: { episodeType?: number; limit?: number; offset?: number },
+  ): Promise<{ total: number; limit: number; offset: number; data: BangumiUserEpisodeCollectionItem[] }> {
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    const query = new URLSearchParams();
+    if (typeof options?.episodeType === "number") query.set("episode_type", String(options.episodeType));
+    query.set("limit", String(options?.limit ?? 100));
+    query.set("offset", String(options?.offset ?? 0));
+
+    await this.throttle();
+    const response = await requestWithTimeout({
+      url: `${BANGUMI_API_BASE}/users/-/collections/${subjectId}/episodes?${query.toString()}`,
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${trimmed}`,
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+      },
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
+      throw new Error(`Bangumi API error: HTTP ${response.status}`);
+    }
+
+    const parsed: unknown = response.json ?? JSON.parse(response.text || "{}");
+    const data = record(parsed);
+    const list = Array.isArray(data.data) ? data.data : [];
+
+    return {
+      total: numProp(data, "total"),
+      limit: numProp(data, "limit", 100),
+      offset: numProp(data, "offset", 0),
+      data: list as BangumiUserEpisodeCollectionItem[],
+    };
+  }
+
+  async fetchSubjectEpisodes(
+    subjectId: number,
+    options?: { type?: number; limit?: number; offset?: number },
+  ): Promise<{ total: number; limit: number; offset: number; data: BangumiEpisodeItem[] }> {
+    const query = new URLSearchParams();
+    query.set("subject_id", String(subjectId));
+    if (typeof options?.type === "number") query.set("type", String(options.type));
+    query.set("limit", String(options?.limit ?? 100));
+    query.set("offset", String(options?.offset ?? 0));
+
+    await this.throttle();
+    const response = await requestWithTimeout({
+      url: `${BANGUMI_API_BASE}/episodes?${query.toString()}`,
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+      },
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Bangumi API error: HTTP ${response.status}`);
+    }
+
+    const parsed: unknown = response.json ?? JSON.parse(response.text || "{}");
+    const data = record(parsed);
+    const list = Array.isArray(data.data) ? data.data : [];
+
+    return {
+      total: numProp(data, "total"),
+      limit: numProp(data, "limit", 100),
+      offset: numProp(data, "offset", 0),
+      data: list as BangumiEpisodeItem[],
+    };
+  }
+
+  async patchSubjectEpisodes(
+    token: string,
+    subjectId: number,
+    episodeIds: number[],
+    type: number,
+  ): Promise<void> {
+    if (!episodeIds.length) return;
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    await this.throttle();
+    const response = await requestWithTimeout({
+      url: `${BANGUMI_API_BASE}/users/-/collections/${subjectId}/episodes`,
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${trimmed}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "User-Agent": USER_AGENT,
+      },
+      body: JSON.stringify({
+        episode_id: episodeIds,
+        type,
+      }),
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
+      throw new Error(`Bangumi API error: HTTP ${response.status}`);
+    }
+  }
+
+  async updateAnimeEpisodeProgress(
+    token: string,
+    subjectId: number,
+    progress: number,
+    status?: string,
+  ): Promise<void> {
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    let episodeItems: BangumiUserEpisodeCollectionItem[] = [];
+    try {
+      const res = await this.fetchUserSubjectEpisodes(trimmed, subjectId, { episodeType: 0, limit: 1000 });
+      episodeItems = res.data ?? [];
+    } catch {
+      try {
+        const publicRes = await this.fetchSubjectEpisodes(subjectId, { type: 0, limit: 1000 });
+        episodeItems = (publicRes.data ?? []).map((ep) => ({
+          episode: ep,
+          type: 0,
+        }));
+      } catch {
+        return;
+      }
+    }
+
+    if (!episodeItems.length) return;
+
+    const normalEpisodes = episodeItems
+      .filter((item) => (item.episode?.type ?? 0) === 0)
+      .sort((a, b) => (a.episode?.sort ?? 0) - (b.episode?.sort ?? 0));
+
+    if (!normalEpisodes.length) return;
+
+    const isCompleted = status === "completed";
+    const effectiveProgress = isCompleted && progress === 0
+      ? normalEpisodes.length
+      : Math.max(0, progress);
+
+    const toMarkWatched: number[] = [];
+    const toUnmarkWatched: number[] = [];
+
+    for (const item of normalEpisodes) {
+      const sort = item.episode?.sort ?? 0;
+      const id = item.episode?.id;
+      if (!id) continue;
+
+      if (sort <= effectiveProgress) {
+        if (item.type !== 2) {
+          toMarkWatched.push(id);
+        }
+      } else {
+        if (item.type === 2) {
+          toUnmarkWatched.push(id);
+        }
+      }
+    }
+
+    if (toMarkWatched.length > 0) {
+      await this.patchSubjectEpisodes(trimmed, subjectId, toMarkWatched, 2);
+    }
+    if (toUnmarkWatched.length > 0) {
+      await this.patchSubjectEpisodes(trimmed, subjectId, toUnmarkWatched, 0);
     }
   }
 }

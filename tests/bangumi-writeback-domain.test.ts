@@ -38,18 +38,19 @@ describe("Bangumi writeback domain mappings", () => {
     assert.equal(mapProgressToEpStatus("invalid"), 0);
   });
 
-  it("maps score to 1-10 integer rate or 0 when empty/cleared", () => {
+  it("maps score to 1-10 integer rate or 0 when empty/cleared (floors decimal ratings)", () => {
     assert.equal(mapScoreToBangumiRate(null), 0);
     assert.equal(mapScoreToBangumiRate(undefined), 0);
     assert.equal(mapScoreToBangumiRate(""), 0);
     assert.equal(mapScoreToBangumiRate(0), 0);
     assert.equal(mapScoreToBangumiRate(-1), 0);
     assert.equal(mapScoreToBangumiRate(1), 1);
-    assert.equal(mapScoreToBangumiRate(8.5), 9);
+    assert.equal(mapScoreToBangumiRate(9.5), 9);
+    assert.equal(mapScoreToBangumiRate(8.5), 8);
     assert.equal(mapScoreToBangumiRate(8.4), 8);
     assert.equal(mapScoreToBangumiRate(10), 10);
     assert.equal(mapScoreToBangumiRate(12), 10);
-    assert.equal(mapScoreToBangumiRate("7.5"), 8);
+    assert.equal(mapScoreToBangumiRate("7.5"), 7);
   });
 
   it("performs dirty check correctly comparing previous against next state", () => {

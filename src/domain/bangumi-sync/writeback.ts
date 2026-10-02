@@ -27,7 +27,7 @@ export function mapScoreToBangumiRate(score: unknown): number {
   if (score === null || score === undefined || score === "") return 0;
   const num = typeof score === "number" ? score : Number(score);
   if (!Number.isFinite(num) || num <= 0) return 0;
-  return Math.max(1, Math.min(10, Math.round(num)));
+  return Math.max(1, Math.min(10, Math.floor(num)));
 }
 
 export function isMediaWritebackDirty(

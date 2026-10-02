@@ -372,14 +372,27 @@ describe("reconcileSingleItem", () => {
     }
   });
 
-  it("pushes score to Bangumi when local has score and remote has none", () => {
-    const local = { status: "completed", progress: 12, score: 8.5, completedAt: "2024-01-01" };
+  it("pushes score to Bangumi when local has score and remote has none (flooring decimal rating)", () => {
+    const local = { status: "completed", progress: 12, score: 9.5, completedAt: "2024-01-01" };
     const remote = { type: 2, epStatus: 12, rate: 0, updatedAt: "2024-01-01T00:00:00Z" };
 
     const result = reconcileSingleItem(local, remote);
     assert.equal(result.kind, "update");
     if (result.kind === "update") {
       assert.equal(result.scoreToPush, 9);
+      assert.equal(result.score, 9.5);
+      assert.equal(result.changed, true);
+    }
+  });
+
+  it("pushes score to Bangumi when local has score 8.5 and remote has none", () => {
+    const local = { status: "completed", progress: 12, score: 8.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 0, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.scoreToPush, 8);
       assert.equal(result.score, 8.5);
       assert.equal(result.changed, true);
     }
@@ -408,6 +421,67 @@ describe("reconcileSingleItem", () => {
       assert.equal(result.localScore, 7);
       assert.equal(result.remoteRate, 9);
       assert.match(result.reason, /conflict/i);
+    }
+  });
+
+  it("does not report conflict when local score has a 0.5 difference with Bangumi floored integer rating (9.5 vs 9)", () => {
+    const local = { status: "completed", progress: 12, score: 9.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 9, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.score, 9.5, "Preserves local score of 9.5");
+      assert.equal(result.scoreToPush, null, "Does not re-push since Bangumi already has 9");
+      assert.equal(result.changed, false);
+    }
+  });
+
+  it("detects conflict when local score is 9.5 and Bangumi has 10 (since 9.5 floors to 9, 10 is a difference)", () => {
+    const local = { status: "completed", progress: 12, score: 9.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 10, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "conflict");
+    if (result.kind === "conflict") {
+      assert.equal(result.localScore, 9.5);
+      assert.equal(result.remoteRate, 10);
+    }
+  });
+
+  it("detects conflict when local score is 9.5 and Bangumi has 8", () => {
+    const local = { status: "completed", progress: 12, score: 9.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 8, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "conflict");
+    if (result.kind === "conflict") {
+      assert.equal(result.localScore, 9.5);
+      assert.equal(result.remoteRate, 8);
+    }
+  });
+
+  it("detects conflict when local score is 8.5 and Bangumi has 9 (since 8.5 floors to 8)", () => {
+    const local = { status: "completed", progress: 12, score: 8.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 9, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "conflict");
+    if (result.kind === "conflict") {
+      assert.equal(result.localScore, 8.5);
+      assert.equal(result.remoteRate, 9);
+    }
+  });
+
+  it("does not report conflict when local score is 8.5 and Bangumi has 8", () => {
+    const local = { status: "completed", progress: 12, score: 8.5, completedAt: "2024-01-01" };
+    const remote = { type: 2, epStatus: 12, rate: 8, updatedAt: "2024-01-01T00:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.score, 8.5);
+      assert.equal(result.scoreToPush, null);
     }
   });
 });
@@ -543,7 +617,7 @@ describe("BangumiSyncService.syncSingleNote", () => {
 
     const result = await service.syncSingleNote(file);
     assert.equal(result.kind, "success");
-    assert.deepEqual(patchedPayload, { rate: 9 }); // rounded 8.5 to 9
+    assert.deepEqual(patchedPayload, { rate: 8 }); // floored 8.5 to 8
     assert.equal(frontmatter.status, "completed");
     assert.equal(frontmatter.progress, 28);
     assert.equal(frontmatter.score, 8.5);
@@ -583,6 +657,47 @@ describe("BangumiSyncService.syncSingleNote", () => {
     assert.equal(frontmatter.progress, 26);
     assert.equal(frontmatter.completed_at, "2020-05-20", "Existing completed_at must be preserved");
     assert.deepEqual(frontmatter.custom_tags, ["mecha", "classic"], "Custom tags must be preserved");
+  });
+
+  it("does not conflict when local score is 9.5 and remote rate is 9, preserving local 9.5", async () => {
+    const { app, file, frontmatter, settings } = createTestHarness({
+      title: "Clannad",
+      source_provider: "bangumi",
+      source_id: 350,
+      status: "completed",
+      progress: 24,
+      score: 9.5,
+      completed_at: "2024-01-01",
+    });
+
+    let patched = false;
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            subject_id: 350,
+            type: 2,
+            ep_status: 24,
+            rate: 9, // integer 9 vs local 9.5
+            updated_at: "2024-01-01T00:00:00Z",
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patched = true;
+        return { status: 200 };
+      }
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.syncSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.equal(patched, false, "Must not patch Bangumi when scores are consistent within 0.5");
+    assert.equal(frontmatter.score, 9.5, "Must preserve exact local 9.5 score");
   });
 });
 
@@ -1105,6 +1220,31 @@ describe("BangumiSyncService.pushSingleNote and pushAnimeData", () => {
     assert.equal(result.subjectId, 4001);
     assert.equal(sentMethod, "PATCH");
     assert.deepEqual(sentPayload, { type: 2, ep_status: 28, rate: 10 });
+  });
+
+  it("floors decimal score when pushing to Bangumi (e.g. 9.5 pushes rate 9)", async () => {
+    const { app, file, settings } = createHarness({
+      title: "Steins;Gate",
+      media_type: "anime",
+      source_provider: "bangumi",
+      source_id: 4009,
+      status: "completed",
+      progress: 24,
+      score: 9.5,
+    });
+
+    let sentPayload: any = null;
+    setRequestUrlMock((options) => {
+      sentPayload = JSON.parse(options.body);
+      return { status: 200, json: {} };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.pushSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.deepEqual(sentPayload, { type: 2, ep_status: 24, rate: 9 });
   });
 
   it("creates collection via POST fallback when subject is uncollected (404)", async () => {

@@ -1,7 +1,16 @@
 {
-  "name": "animelist",
-  "version": "1.5.2",
-  "description": "An Obsidian plugin for managing anime, manga, and novel lists in Markdown.",
+  "name": "animelist-enhanced",
+  "version": "1.6.0",
+  "description": "An Obsidian plugin for managing anime, manga, and novel lists in Markdown with Bangumi two-way sync and writeback.",
+  "author": "Kougami132",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kougami132/AnimeList.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Kougami132/AnimeList/issues"
+  },
+  "homepage": "https://github.com/Kougami132/AnimeList#readme",
   "main": "main.js",
   "type": "module",
   "scripts": {

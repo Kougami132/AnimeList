@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.6.0 - 2026-09-02
+
+### Added
+
+- Added Bangumi two-way collection and progress synchronization (`Bangumi Sync`), including sync-window time filtering, batch diff preview modal, and conflict resolution strategy.
+- Added Bangumi manual push writeback and auto-push on media edit (`Push On Edit`), with intelligent dirty checking and score floor normalization.
+- Added Simplified Chinese (`zh-CN`) localization baseline across core plugin interfaces and completely rewritten native tabbed Settings pages in Simplified Chinese.
+- Added full Library filtering controls (studios, broadcast quarters, and user tags) to the Score Dashboard view, matching the main Library filter experience.
+- Added automatic legacy settings migration: upgrading users from upstream `animelist` automatically retain their configurations without manual reconfiguration.
+
+### Changed
+
+- Transitioned plugin identity and community registry to `AnimeList Enhanced` (`animelist-enhanced`) maintained by Kougami132, with full backward compatibility for existing `animelist` code blocks and media notes.
+- Recalibrated anime broadcasting season resolution to prioritize industry broadcast schedule and provider tags over strict Gregorian calendar month calculations (e.g. late-June summer anime correctly classifies as Q3 Summer; late-December winter anime classifies as Q1 Winter).
+
+### Fixed
+
+- Fixed Bangumi API endpoint paths for user collection retrieval and user info queries.
+- Fixed 400 Bad Request error during Bangumi writeback caused by improper episode status payload on subject collection updates.
+- Fixed score writeback rounding to floor integer values as required by Bangumi API contracts.
+
 ## 1.5.2 - 2026-09-01
 
 ### Changed

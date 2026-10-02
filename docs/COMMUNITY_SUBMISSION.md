@@ -6,7 +6,7 @@ Always compare this checklist with the latest official Obsidian developer docume
 
 1. Keep the GitHub repository public.
 2. Keep the final public author name in `manifest.json`.
-3. Keep the plugin ID as `animelist` after the first public release.
+3. Keep the plugin ID as `animelist-enhanced` after the first public release.
 4. Keep `manifest.json`, `versions.json`, and `README.md` in the repository root.
 5. Run `npm ci`, `npm run check`, and `npm run release:check` from the exact release candidate.
 6. Complete `docs/MANUAL_TEST_CHECKLIST.md` on desktop and mobile for the changed features.
@@ -41,19 +41,20 @@ Use these project values:
 
 ```json
 {
-  "id": "animelist",
-  "name": "AnimeList",
-  "author": "YOUR_PUBLIC_AUTHOR_NAME",
-  "description": "A local-first anime, manga, and novel library backed by Markdown, with metadata search, covers, ratings, templates, filters, and a completion timeline.",
-  "repo": "YOUR_GITHUB_USERNAME/AnimeList"
+  "id": "animelist-enhanced",
+  "name": "AnimeList Enhanced",
+  "author": "Kougami132",
+  "description": "A local-first anime, manga, and novel library backed by Markdown with Bangumi two-way sync, metadata search, covers, ratings, and a timeline.",
+  "repo": "Kougami132/AnimeList"
 }
 ```
 
 ## Network and privacy disclosure
 
-AnimeList uses network access only for user-requested or explicitly enabled media functionality:
+AnimeList Enhanced uses network access only for user-requested or explicitly enabled media functionality:
 
 - metadata/search: Bangumi, AniList, and Open Library;
+- Bangumi collection & progress two-way synchronization and manual/edit writeback using the user's personal Bangumi access token;
 - cover discovery or fallback where configured, including Google Books for serial-cover fallback;
 - opt-in manga release tracking: MangaDex plus supported official public chapter pages discovered from the exact preserved AniList work identity;
 - opt-in novel release tracking: public NDL/JPRO catalog data;

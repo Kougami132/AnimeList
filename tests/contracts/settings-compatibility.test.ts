@@ -157,3 +157,27 @@ it("preserves unknown feature settings through the shared settings store", async
   assert.equal(settings.searchLanguages.original, true);
   assert.equal(settings.specialLabelMode, "favorite");
 });
+
+it("falls back to legacy settings loader when primary storage is empty", async () => {
+  const emptyStorage = {
+    async loadData(): Promise<unknown> {
+      return null;
+    },
+    async saveData(): Promise<void> {},
+  };
+  let fallbackCalled = false;
+  const fallbackLoader = async () => {
+    fallbackCalled = true;
+    return {
+      libraryRoot: "MyLegacyLibrary",
+      storageMode: "managed",
+    };
+  };
+  const { AnimeListSettingsStore } = await import("../../src/app/settings-store");
+  const store = new AnimeListSettingsStore(emptyStorage, fallbackLoader);
+  const settings = await store.load();
+
+  assert.equal(fallbackCalled, true);
+  assert.equal(settings.libraryRoot, "MyLegacyLibrary");
+  assert.equal(settings.storageMode, "managed");
+});

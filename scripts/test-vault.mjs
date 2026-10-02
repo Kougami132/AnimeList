@@ -14,7 +14,9 @@ const noOpen = process.argv.includes("--no-open") || process.env.ANIMELIST_TEST_
 const vaultRoot = path.resolve(process.env.ANIMELIST_TEST_VAULT || path.join(repoRoot, "test-vault"));
 const obsidianRoot = path.join(vaultRoot, ".obsidian");
 const pluginsRoot = path.join(obsidianRoot, "plugins");
-const pluginRoot = path.join(pluginsRoot, "animelist");
+const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "manifest.json"), "utf8"));
+const pluginId = manifest.id || "animelist-enhanced";
+const pluginRoot = path.join(pluginsRoot, pluginId);
 
 if (!new Set(["production", "development"]).has(mode)) {
   console.error("Usage: node scripts/test-vault.mjs <production|development> [--no-open]");
@@ -72,7 +74,7 @@ function enablePlugin() {
     }
     enabledPlugins = parsed;
   }
-  if (!enabledPlugins.includes("animelist")) enabledPlugins.push("animelist");
+  if (!enabledPlugins.includes(pluginId)) enabledPlugins.push(pluginId);
   fs.writeFileSync(communityPluginsPath, `${JSON.stringify(enabledPlugins, null, 2)}\n`);
 }
 

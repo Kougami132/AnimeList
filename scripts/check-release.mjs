@@ -33,7 +33,7 @@ if (fs.existsSync("CHANGELOG.md")) {
 } else {
   failures.push("CHANGELOG.md is missing");
 }
-if (manifest.id !== "animelist") failures.push("manifest id must remain animelist after community publication");
+if (manifest.id !== "animelist-enhanced") failures.push("manifest id must remain animelist-enhanced after community publication");
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join("\n"));

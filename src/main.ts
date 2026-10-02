@@ -94,7 +94,7 @@ export class AnimeListPlugin extends Plugin implements AnimeListUiHost {
   private services(): AnimeListApplicationServices {
     this.application ??= new AnimeListApplicationServices(
       this.app,
-      this.manifest?.id ?? "animelist",
+      this.manifest?.id ?? "animelist-enhanced",
       () => this.settings,
       {
         openMediaFile: (path) => this.openMediaFile(path),
@@ -105,7 +105,29 @@ export class AnimeListPlugin extends Plugin implements AnimeListUiHost {
     return this.application;
   }
 
-  private settingsStore(): AnimeListSettingsStore { return new AnimeListSettingsStore(this); }
+  private settingsStore(): AnimeListSettingsStore {
+    return new AnimeListSettingsStore(this, () => this.loadLegacySettingsFallback());
+  }
+
+  private async loadLegacySettingsFallback(): Promise<unknown> {
+    try {
+      const configDir = this.app?.vault?.configDir;
+      if (!configDir || !this.app?.vault?.adapter) return null;
+      const legacyPath = `${configDir}/plugins/animelist/data.json`;
+      if (await this.app.vault.adapter.exists(legacyPath)) {
+        const rawBytes = await this.app.vault.adapter.readBinary(legacyPath);
+        const rawText = new TextDecoder().decode(rawBytes);
+        const parsed = JSON.parse(rawText) as unknown;
+        if (parsed && typeof parsed === "object") {
+          await this.saveData(parsed);
+          return parsed;
+        }
+      }
+    } catch (error) {
+      console.warn("AnimeList Enhanced: could not load legacy animelist settings", error);
+    }
+    return null;
+  }
   private applyInterfaceLanguage(): void {
     setActiveLocale(resolveInterfaceLocale(
       this.settings.interfaceLanguage,

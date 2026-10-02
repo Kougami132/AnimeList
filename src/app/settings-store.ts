@@ -6,11 +6,23 @@ export interface SettingsStorage {
   saveData(data: unknown): Promise<void>;
 }
 
+export type FallbackSettingsLoader = () => Promise<unknown>;
+
 export class AnimeListSettingsStore {
-  constructor(private readonly storage: SettingsStorage) {}
+  constructor(
+    private readonly storage: SettingsStorage,
+    private readonly fallbackLoader?: FallbackSettingsLoader,
+  ) {}
 
   async load(): Promise<AnimeListSettings> {
-    return normalizeAnimeListSettings(await this.storage.loadData());
+    let raw = await this.storage.loadData();
+    if ((raw === null || raw === undefined || (typeof raw === "object" && Object.keys(raw).length === 0)) && this.fallbackLoader) {
+      const fallback = await this.fallbackLoader();
+      if (fallback !== null && fallback !== undefined) {
+        raw = fallback;
+      }
+    }
+    return normalizeAnimeListSettings(raw);
   }
 
   async save(settings: AnimeListSettings): Promise<AnimeListSettings> {

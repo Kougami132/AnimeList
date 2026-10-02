@@ -65,6 +65,7 @@ export interface BangumiCollectionResponseItem {
     name: string;
     name_cn: string;
     eps?: number;
+    total_episodes?: number;
     images?: {
       large?: string;
       common?: string;
@@ -516,19 +517,35 @@ export class BangumiSyncClient {
     if (!normalEpisodes.length) return;
 
     const isCompleted = status === "completed";
-    const effectiveProgress = isCompleted && progress === 0
-      ? normalEpisodes.length
-      : Math.max(0, progress);
+    const totalCount = normalEpisodes.length;
+    const minSort = normalEpisodes[0]?.episode?.sort ?? 1;
+    const maxSort = normalEpisodes[totalCount - 1]?.episode?.sort ?? totalCount;
 
     const toMarkWatched: number[] = [];
     const toUnmarkWatched: number[] = [];
 
-    for (const item of normalEpisodes) {
-      const sort = item.episode?.sort ?? 0;
+    for (let index = 0; index < totalCount; index += 1) {
+      const item = normalEpisodes[index];
+      const sort = item.episode?.sort ?? (index + 1);
       const id = item.episode?.id;
       if (!id) continue;
 
-      if (sort <= effectiveProgress) {
+      let shouldBeWatched = false;
+      if (isCompleted) {
+        shouldBeWatched = true;
+      } else if (progress <= 0) {
+        shouldBeWatched = false;
+      } else if (progress <= totalCount) {
+        shouldBeWatched = index < progress;
+      } else if (minSort > 1 && progress <= maxSort) {
+        shouldBeWatched = sort <= progress;
+      } else if (progress > maxSort) {
+        shouldBeWatched = true;
+      } else {
+        shouldBeWatched = sort <= progress;
+      }
+
+      if (shouldBeWatched) {
         if (item.type !== 2) {
           toMarkWatched.push(id);
         }

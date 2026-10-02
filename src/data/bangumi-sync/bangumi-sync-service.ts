@@ -119,7 +119,15 @@ export class BangumiSyncService {
         updatedAt: collection.updated_at ?? "",
       };
 
-      const reconciled = reconcileSingleItem(local, remote);
+      const localTotal = typeof fm?.episodes === "number" && fm.episodes > 0
+        ? fm.episodes
+        : typeof fm?.total === "number" && fm.total > 0
+          ? fm.total
+          : 0;
+      const remoteEps = collection.subject?.eps ?? collection.subject?.total_episodes ?? 0;
+      const totalEpisodes = remoteEps > 0 ? remoteEps : localTotal;
+
+      const reconciled = reconcileSingleItem(local, remote, totalEpisodes);
 
       if (reconciled.kind === "conflict") {
         new Notice(
@@ -340,7 +348,15 @@ export class BangumiSyncService {
         updatedAt: col.updated_at ?? "",
       };
 
-      const reconciled = reconcileSingleItem(local, remote);
+      const localTotal = typeof fm.episodes === "number" && fm.episodes > 0
+        ? fm.episodes
+        : typeof fm.total === "number" && fm.total > 0
+          ? fm.total
+          : 0;
+      const remoteEps = col.subject?.eps ?? col.subject?.total_episodes ?? 0;
+      const totalEpisodes = remoteEps > 0 ? remoteEps : localTotal;
+
+      const reconciled = reconcileSingleItem(local, remote, totalEpisodes);
 
       if (reconciled.kind === "conflict") {
         items.push({
@@ -509,11 +525,15 @@ export class BangumiSyncService {
       }
     }
 
+    const formProgress = formStatus === "completed" && normalized.total > 0 && (item.remoteEpStatus ?? 0) < normalized.total
+      ? normalized.total
+      : item.remoteEpStatus;
+
     const form: MediaNoteForm = {
       title: normalized.title,
       status: formStatus,
       releaseStatus: "unknown",
-      progress: item.remoteEpStatus,
+      progress: formProgress,
       total: normalized.total,
       unit: "episode",
       score: item.remoteRate != null ? item.remoteRate : "",

@@ -41,6 +41,20 @@ _Avoid_: Sync list, Import preview
 The identification strategy that pairs local media notes with remote Bangumi subjects exclusively via explicit Bangumi subject ID frontmatter fields.
 _Avoid_: Title matching, Fuzzy matching
 
+**Relative Episode Progress (条目相对集数进度)**:
+The domain rule that local anime note progress strictly records the count of watched episodes within that specific entry or season ($0 \le progress \le total$), rather than the global franchise episode index.
+_Avoid_: Absolute episode sort, Cumulative franchise progress
+
+**Dual-mode Push Reconciliation (双模集数对齐)**:
+The push alignment strategy that compares local progress against normal Bangumi episodes: when local progress falls within the season's total episode count, it maps to the first N episodes by sort order; when local progress falls within the subject's absolute sort boundaries ($minSort \le progress \le maxSort$), it matches by absolute episode sort; and when local status is `completed`, it marks all normal episodes watched unconditionally.
+_Avoid_: Naive sort comparison, Linear progress assumption
+
+**Completed Progress Alignment (完结进度对齐)**:
+The pull synchronization rule that automatically sets local progress to the entry's total episodes when the remote status is `completed` but remote `ep_status` is zero or less than the total, preventing finished shows from displaying incomplete or zero progress.
+_Avoid_: Empty completed progress, Zero progress override
+
+
+
 ## Storage & Settings
 
 **Managed Mode (分类托管模式)**:

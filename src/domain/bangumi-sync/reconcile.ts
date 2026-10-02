@@ -30,10 +30,19 @@ export type ReconciliationResult =
 export function reconcileSingleItem(
   local: LocalMediaState,
   remote: RemoteBangumiState,
+  totalEpisodes?: number,
 ): ReconciliationResult {
   const remoteCollectionStatus = bangumiTypeNumberToStatus(remote.type) ?? "watching";
   const targetStatus = bangumiStatusToMediaStatus(remoteCollectionStatus);
-  const targetProgress = Math.max(0, remote.epStatus);
+  const rawEpStatus = Math.max(0, remote.epStatus);
+  const validTotal = typeof totalEpisodes === "number" && Number.isFinite(totalEpisodes) && totalEpisodes > 0
+    ? Math.floor(totalEpisodes)
+    : 0;
+
+  // Completed progress alignment: if completed and remote epStatus < total, align to total
+  const targetProgress = targetStatus === "completed" && validTotal > 0 && rawEpStatus < validTotal
+    ? validTotal
+    : rawEpStatus;
 
   const remoteRate = remote.rate > 0 ? remote.rate : null;
   const localScore = local.score != null && local.score > 0 ? local.score : null;

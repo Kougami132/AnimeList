@@ -437,6 +437,181 @@ describe("BangumiSyncClient episode progress updates", () => {
       type: 2,
     });
   });
+
+  it("marks all episodes watched when relative progress matches total episodes for sequel anime (e.g. 13/13 with sort 13-25)", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchBody: any = null;
+
+    const sequelEpisodes = Array.from({ length: 13 }, (_, i) => ({
+      episode: { id: 100 + i, sort: 13 + i, type: 0 },
+      type: 0,
+    }));
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 13,
+            data: sequelEpisodes,
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchBody = JSON.parse(options.body);
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    // Local progress is 13 (relative 13/13)
+    await client.updateAnimeEpisodeProgress("test_token", 2001, 13, "ongoing");
+    assert.ok(patchBody, "Expected PATCH request to be made");
+    assert.deepEqual(patchBody, {
+      episode_id: sequelEpisodes.map((e) => e.episode.id),
+      type: 2,
+    });
+  });
+
+  it("marks first N episodes watched for partial relative progress in sequel anime (e.g. 3/13 with sort 13-25)", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchBody: any = null;
+
+    const sequelEpisodes = Array.from({ length: 13 }, (_, i) => ({
+      episode: { id: 100 + i, sort: 13 + i, type: 0 },
+      type: 0,
+    }));
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 13,
+            data: sequelEpisodes,
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchBody = JSON.parse(options.body);
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    // Local progress is 3 (relative 3/13): first 3 episodes (sort 13, 14, 15 -> ids 100, 101, 102)
+    await client.updateAnimeEpisodeProgress("test_token", 2002, 3, "ongoing");
+    assert.ok(patchBody, "Expected PATCH request to be made");
+    assert.deepEqual(patchBody, {
+      episode_id: [100, 101, 102],
+      type: 2,
+    });
+  });
+
+  it("marks episodes watched using absolute sort matching when progress is in [minSort, maxSort] (e.g. progress 15 for sort 13-25)", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchBody: any = null;
+
+    const sequelEpisodes = Array.from({ length: 13 }, (_, i) => ({
+      episode: { id: 100 + i, sort: 13 + i, type: 0 },
+      type: 0,
+    }));
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 13,
+            data: sequelEpisodes,
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchBody = JSON.parse(options.body);
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    // Local progress is 15: absolute sort matching up to sort 15 (sort 13, 14, 15 -> ids 100, 101, 102)
+    await client.updateAnimeEpisodeProgress("test_token", 2003, 15, "ongoing");
+    assert.ok(patchBody, "Expected PATCH request to be made");
+    assert.deepEqual(patchBody, {
+      episode_id: [100, 101, 102],
+      type: 2,
+    });
+  });
+
+  it("unconditionally marks all normal episodes when status is completed for sequel anime", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    let patchBody: any = null;
+
+    const sequelEpisodes = Array.from({ length: 13 }, (_, i) => ({
+      episode: { id: 100 + i, sort: 13 + i, type: 0 },
+      type: 0,
+    }));
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 13,
+            data: sequelEpisodes,
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchBody = JSON.parse(options.body);
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    await client.updateAnimeEpisodeProgress("test_token", 2004, 0, "completed");
+    assert.ok(patchBody, "Expected PATCH request to be made");
+    assert.deepEqual(patchBody, {
+      episode_id: sequelEpisodes.map((e) => e.episode.id),
+      type: 2,
+    });
+  });
+
+  it("unmarks episodes when progress in sequel anime decreases (e.g. from 3 to 1)", async () => {
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const patchCalls: any[] = [];
+
+    // Sort 13, 14, 15 already marked watched (type 2)
+    const sequelEpisodes = Array.from({ length: 13 }, (_, i) => ({
+      episode: { id: 100 + i, sort: 13 + i, type: 0 },
+      type: i < 3 ? 2 : 0,
+    }));
+
+    setRequestUrlMock((options) => {
+      if (options.method === "GET") {
+        return {
+          status: 200,
+          json: {
+            total: 13,
+            data: sequelEpisodes,
+          },
+        };
+      }
+      if (options.method === "PATCH") {
+        patchCalls.push({ url: options.url, body: JSON.parse(options.body) });
+        return { status: 204 };
+      }
+      return { status: 200 };
+    });
+
+    // Decrease from 3 to 1: only sort 13 should remain watched, sort 14 and 15 should be unmarked
+    await client.updateAnimeEpisodeProgress("test_token", 2005, 1, "ongoing");
+    assert.equal(patchCalls.length, 1);
+    assert.deepEqual(patchCalls[0].body, {
+      episode_id: [101, 102],
+      type: 0,
+    });
+  });
 });
 
 describe("extractBangumiSubjectId", () => {
@@ -510,6 +685,57 @@ describe("reconcileSingleItem", () => {
     assert.equal(result.kind, "update");
     if (result.kind === "update") {
       assert.equal(result.completedAt, "2024-03-15");
+    }
+  });
+
+  it("aligns completed progress to totalEpisodes when remote epStatus is incomplete (e.g. epStatus 1 with total 13)", () => {
+    const local = { status: "completed", progress: 13, score: 9, completedAt: "2024-03-15" };
+    // Bangumi returned epStatus: 1 due to web interface marking or previous partial sync
+    const remote = { type: 2, epStatus: 1, rate: 9, updatedAt: "2024-03-15T10:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote, 13);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.status, "completed");
+      assert.equal(result.progress, 13, "Progress should be aligned to totalEpisodes (13), not corrupted to 1");
+      assert.equal(result.changed, false, "Local 13 matches aligned target 13, so unchanged");
+    }
+  });
+
+  it("aligns completed progress to totalEpisodes when remote epStatus is 0", () => {
+    const local = { status: "ongoing", progress: 0, score: null, completedAt: "" };
+    const remote = { type: 2, epStatus: 0, rate: 8, updatedAt: "2024-03-15T10:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote, 12);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.status, "completed");
+      assert.equal(result.progress, 12, "Progress should be aligned to totalEpisodes (12) for completed entry");
+      assert.equal(result.changed, true);
+    }
+  });
+
+  it("preserves remote epStatus when status is completed and remote epStatus >= total", () => {
+    const local = { status: "ongoing", progress: 10, score: null, completedAt: "" };
+    const remote = { type: 2, epStatus: 14, rate: 8, updatedAt: "2024-03-15T10:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote, 13);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.progress, 14, "Progress should preserve higher remote epStatus");
+    }
+  });
+
+  it("faithfully preserves remote epStatus without clamping when status is ongoing even if epStatus > total", () => {
+    const local = { status: "ongoing", progress: 5, score: null, completedAt: "" };
+    // Remote is watching (type 3), epStatus is 15 (exceeding total 12)
+    const remote = { type: 3, epStatus: 15, rate: 0, updatedAt: "2024-03-15T10:00:00Z" };
+
+    const result = reconcileSingleItem(local, remote, 12);
+    assert.equal(result.kind, "update");
+    if (result.kind === "update") {
+      assert.equal(result.status, "ongoing");
+      assert.equal(result.progress, 15, "Ongoing progress should not be clamped to totalEpisodes");
     }
   });
 
@@ -839,6 +1065,43 @@ describe("BangumiSyncService.syncSingleNote", () => {
     assert.equal(result.kind, "success");
     assert.equal(patched, false, "Must not patch Bangumi when scores are consistent within 0.5");
     assert.equal(frontmatter.score, 9.5, "Must preserve exact local 9.5 score");
+  });
+
+  it("aligns completed anime progress to total episodes when pulling with incomplete remote ep_status", async () => {
+    const { app, file, frontmatter, settings } = createTestHarness({
+      title: "Mushoku Tensei S2 Part 2",
+      source_provider: "bangumi",
+      source_id: 444557,
+      status: "completed",
+      progress: 13,
+      episodes: 13,
+      score: 9,
+      completed_at: "2024-07-01",
+    });
+
+    setRequestUrlMock(() => {
+      return {
+        status: 200,
+        json: {
+          subject_id: 444557,
+          type: 2, // completed
+          ep_status: 1, // corrupted/incomplete on Bangumi!
+          rate: 9,
+          updated_at: "2024-07-01T00:00:00Z",
+          subject: {
+            eps: 13,
+          },
+        },
+      };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.syncSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.equal(result.changed, false, "Should be considered unchanged since progress aligns to 13");
+    assert.equal(frontmatter.progress, 13, "Local progress should remain 13, not corrupted to 1");
   });
 });
 

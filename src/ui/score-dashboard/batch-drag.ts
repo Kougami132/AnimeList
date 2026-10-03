@@ -66,7 +66,7 @@ export function renderScoreDashboardWithBatchDrag(
     controller.signal.addEventListener("abort", () => coverLoading.disconnect(), { once: true });
     const shell = container.querySelector<HTMLElement>(".al-score-dashboard");
     const batchButton = container.querySelector<HTMLButtonElement>(
-      ".al-score-dashboard-action-group .al-score-tool-button:last-child",
+      ".al-score-dashboard-action-group [data-action='batch'], .al-score-dashboard-action-group .al-score-tool-button:last-child",
     );
     if (!shell || !batchButton) return;
 

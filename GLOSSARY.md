@@ -87,4 +87,11 @@ _Avoid_: Calendar quarter, Financial quarter, Release month
 The deterministic hierarchy for anime season and season year resolution: provider explicit season overrides tag-inferred season, which in turn overrides release date calendar month fallback.
 _Avoid_: Month-first resolution, Calendar override
 
+## Score Dashboard & Visualization
+
+**Score Dashboard Screenshot (评分看板长图)**:
+The high-resolution full-board raster export of the user's score dashboard reflecting active media type, filter, and unrated visibility states, synthesized with an informational header and excluding interactive UI controls.
+_Avoid_: Board screencap, Viewport dump, Dashboard crop
+
+
 

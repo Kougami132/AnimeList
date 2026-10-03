@@ -29,6 +29,8 @@ import type { ScoreDashboardMediaType } from "../../domain/score-dashboard/model
 import { applyScoreDashboardDomChanges } from "./dom-move";
 import { animateLayoutChange } from "../layout-motion";
 import { isolateHorizontalSwipeSurface } from "../mobile-swipe-isolation";
+import { planScoreDashboardScreenshot } from "../../domain/score-dashboard/screenshot-layout";
+import { generateScoreDashboardScreenshot, scoreColor } from "./screenshot-raster";
 import {
   collectLibraryFilterOptions,
   libraryFilterCount,
@@ -57,6 +59,11 @@ export interface ScoreDashboardUiAdapters {
     options: LibraryFilterOptions,
     onApply: (filters: LibraryFilters) => void,
   ): void;
+  openScreenshotModal?(
+    blob: Blob,
+    dimensions: { width: number; height: number },
+    defaultFilename: string,
+  ): void;
 }
 
 type ScoreDashboardAppliedHandler = (changes: readonly ScoreDashboardScoreChange[]) => boolean;
@@ -71,11 +78,6 @@ function create<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", l
   if (className) element.className = className;
   if (label) element.textContent = label;
   return element;
-}
-
-function scoreColor(score: number): string {
-  const hue = Math.round(8 + score * 26.2);
-  return `hsl(${hue} 72% 62%)`;
 }
 
 function typeCount(items: readonly MediaItem[], type: ScoreDashboardMediaType): number {
@@ -171,7 +173,12 @@ export function renderScoreDashboard(
   const batchButton = create("button", "al-score-tool-button");
   batchButton.type = "button";
   batchButton.dataset.action = "batch";
-  actionGroup.append(unratedButton, filterButton, batchButton);
+  const screenshotButton = create("button", "al-score-tool-button");
+  screenshotButton.type = "button";
+  screenshotButton.dataset.action = "screenshot";
+  screenshotButton.title = text.screenshotTooltip;
+  screenshotButton.setAttribute("aria-label", text.screenshotTooltip);
+  actionGroup.append(unratedButton, filterButton, batchButton, screenshotButton);
   const zoom = create("label", "al-score-dashboard-zoom");
   const zoomLabel = create("span", "", text.zoom);
   const zoomInput = create("input");
@@ -243,6 +250,7 @@ export function renderScoreDashboard(
     button.append(iconElement, labelElement);
     if (badge != null) button.appendChild(create("span", "al-score-tool-badge", badge));
   };
+  setToolButton(screenshotButton, "camera", text.screenshot, null);
 
   const updatePosterSelection = (button: HTMLElement, selected: boolean): void => {
     button.classList.toggle("is-selected", selected);
@@ -274,6 +282,7 @@ export function renderScoreDashboard(
     shiftDown.disabled = disabled;
     shiftUp.disabled = disabled;
     selectVisibleButton.disabled = operationPending;
+    screenshotButton.disabled = operationPending;
   };
 
   const updateUnratedControl = (count: number): void => {
@@ -607,6 +616,45 @@ export function renderScoreDashboard(
   shiftDown.addEventListener("click", () => void performPlan(planScoreDashboardShift(selectedItems().map(itemSource), -1)));
   shiftUp.addEventListener("click", () => void performPlan(planScoreDashboardShift(selectedItems().map(itemSource), 1)));
   unratedButton.addEventListener("click", () => { state.showUnrated = !state.showUnrated; selectedPaths.clear(); update(); emitState(); });
+  screenshotButton.addEventListener("click", () => {
+    void (async () => {
+      if (screenshotButton.disabled) return;
+      screenshotButton.disabled = true;
+      screenshotButton.classList.add("is-loading");
+      setToolButton(screenshotButton, "loader", text.screenshot, null);
+      adapters.showNotice(text.generatingScreenshot);
+
+      try {
+        const data = buildScoreDashboardData(items, state.type, state.filters);
+        const plan = planScoreDashboardScreenshot(data, {
+          showUnrated: state.showUnrated,
+        });
+        const result = await generateScoreDashboardScreenshot(container, plan, {
+          type: state.type,
+        });
+
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const datePart = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+        const typeLabel = state.type === "anime" ? text.anime : state.type === "manga" ? text.manga : state.type === "novel" ? text.novel : text.all;
+        const defaultFilename = `AnimeList-${text.title}-${typeLabel}-${datePart}.png`;
+
+        if (adapters.openScreenshotModal) {
+          adapters.openScreenshotModal(result.blob, result.dimensions, defaultFilename);
+        } else {
+          console.warn("AnimeList: openScreenshotModal adapter was not provided");
+        }
+      } catch (error) {
+        console.error("AnimeList score dashboard screenshot error:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        adapters.showNotice(`生成看板长图失败：${message}`);
+      } finally {
+        screenshotButton.disabled = false;
+        screenshotButton.classList.remove("is-loading");
+        setToolButton(screenshotButton, "camera", text.screenshot, null);
+      }
+    })();
+  });
   zoomInput.addEventListener("input", () => {
     continuousScale = normalizeScoreDashboardScale(zoomInput.value);
     state.scale = continuousScale;

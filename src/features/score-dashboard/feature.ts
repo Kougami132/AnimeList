@@ -11,6 +11,7 @@ import type { ScoreDashboardUiState } from "../../ui/score-dashboard/renderer";
 import { SCORE_DASHBOARD_VIEW_TYPE, ScoreDashboardView, type ScoreDashboardPluginHost } from "../../ui/score-dashboard/view";
 import { normalizeLibraryFilters } from "../../domain/library-filters";
 import { LibraryFilterModal } from "../../ui/library-filter-modal";
+import { ScoreDashboardScreenshotModal } from "../../ui/score-dashboard/screenshot-modal";
 import { scoreDashboardText as text } from "./text";
 
 interface ScoreDashboardDomEventRegistrar {
@@ -54,6 +55,9 @@ function createHost(
     showNotice: (message) => { new Notice(message); },
     openFilterModal: (filters, options, onApply) => {
       new LibraryFilterModal(plugin.app, filters, options, onApply).open();
+    },
+    openScreenshotModal: (blob, dimensions, defaultFilename) => {
+      new ScoreDashboardScreenshotModal(plugin.app, blob, dimensions, defaultFilename).open();
     },
   };
 }
@@ -143,6 +147,13 @@ function renderWorkspaceScoreDashboard(plugin: ScoreDashboardPlugin, container: 
         dashboardHost.openFilterModal(filters, options, onApply);
       } else {
         new LibraryFilterModal(plugin.app, filters, options, onApply).open();
+      }
+    },
+    openScreenshotModal: (blob, dimensions, defaultFilename) => {
+      if (dashboardHost.openScreenshotModal) {
+        dashboardHost.openScreenshotModal(blob, dimensions, defaultFilename);
+      } else {
+        new ScoreDashboardScreenshotModal(plugin.app, blob, dimensions, defaultFilename).open();
       }
     },
     onStateChange: (nextState) => STATES.set(plugin, { ...nextState }),

@@ -91,6 +91,12 @@
 .al-score-group.is-unrated .al-score-lane-posters { background:var(--background-primary-alt); }
 .al-score-dashboard-button { gap:6px; }
 .al-score-confirm-summary { display:grid; gap:6px; margin:14px 0; padding:12px; border-radius:9px; background:var(--background-secondary); color:var(--text-muted); }
+.al-score-screenshot-modal { width:min(920px, calc(100vw - 32px)); max-width:920px; }
+.al-score-screenshot-meta { margin:-4px 0 12px; color:var(--text-muted); font-size:.74rem; }
+.al-score-screenshot-preview { max-height:60vh; overflow-y:auto; padding:8px; border:1px solid var(--background-modifier-border); border-radius:10px; background:var(--background-secondary); }
+.al-score-screenshot-image { display:block; width:100%; height:auto; border-radius:6px; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+.al-score-screenshot-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin-top:14px; }
+.al-score-screenshot-copy-btn, .al-score-screenshot-download-btn { display:inline-flex; align-items:center; gap:6px; }
 @media (max-width:900px) {
   .al-score-batch-toolbar { flex-wrap:wrap; top:112px; }
   .al-score-batch-target { margin-left:0; }

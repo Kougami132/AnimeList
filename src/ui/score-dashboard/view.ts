@@ -8,6 +8,7 @@ import type { ScoreDashboardUiState } from "./renderer";
 import type { MediaItem } from "../../types";
 import { normalizeLibraryFilters, type LibraryFilterOptions, type LibraryFilters } from "../../domain/library-filters";
 import { LibraryFilterModal } from "../library-filter-modal";
+import { ScoreDashboardScreenshotModal } from "./screenshot-modal";
 
 export const SCORE_DASHBOARD_VIEW_TYPE = "animelist-score-dashboard";
 
@@ -21,6 +22,11 @@ export interface ScoreDashboardPluginHost {
     filters: LibraryFilters,
     options: LibraryFilterOptions,
     onApply: (filters: LibraryFilters) => void,
+  ): void;
+  openScreenshotModal?(
+    blob: Blob,
+    dimensions: { width: number; height: number },
+    defaultFilename: string,
   ): void;
 }
 
@@ -90,6 +96,13 @@ export class ScoreDashboardView extends ItemView {
           this.plugin.openFilterModal(filters, options, onApply);
         } else {
           new LibraryFilterModal(this.app, filters, options, onApply).open();
+        }
+      },
+      openScreenshotModal: (blob, dimensions, defaultFilename) => {
+        if (this.plugin.openScreenshotModal) {
+          this.plugin.openScreenshotModal(blob, dimensions, defaultFilename);
+        } else {
+          new ScoreDashboardScreenshotModal(this.app, blob, dimensions, defaultFilename).open();
         }
       },
       onStateChange: (state) => { this.state = state; },

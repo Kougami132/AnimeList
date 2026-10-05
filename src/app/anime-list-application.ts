@@ -79,7 +79,9 @@ export class AnimeListApplicationServices {
   }
 
   private metadataProviders(): HttpMetadataProviderClients {
-    this.providerClients ??= createMetadataProviderClients();
+    this.providerClients ??= createMetadataProviderClients(
+      () => this.settings().bangumiAccessToken,
+    );
     return this.providerClients;
   }
 

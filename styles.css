@@ -173,13 +173,17 @@
 .al-modal-hint { margin:8px 1px 14px; color:var(--text-faint); font-size:.67rem; line-height:1.5; }
 .al-modal-warning { margin:0 0 12px; padding:9px 11px; border:1px solid color-mix(in srgb,#d49a48 40%,var(--background-modifier-border)); border-radius:9px; color:var(--text-muted); background:color-mix(in srgb,#d49a48 10%,transparent); font-size:.68rem; }
 .al-search-results { display:flex; max-height:none; flex-direction:column; gap:7px; overflow:visible; padding-right:3px; }
+.animelist-modal button.al-search-result,
+.animelist-modal .al-search-result,
+button.al-search-result,
 .al-search-result {
   display:grid; grid-template-columns:58px minmax(0,1fr) auto; gap:12px; align-items:center;
-  width:100%; min-height:86px; padding:8px 10px 8px 8px; border:1px solid var(--background-modifier-border);
+  width:100%; height:auto; min-height:94px; padding:8px 10px 8px 8px; border:1px solid var(--background-modifier-border);
   border-radius:11px; color:var(--text-normal); background:var(--background-secondary); cursor:pointer; text-align:left;
+  box-sizing:border-box;
 }
 .al-search-result:hover { border-color:color-mix(in srgb,var(--interactive-accent) 55%,var(--background-modifier-border)); background:var(--background-secondary-alt); }
-.al-search-result img,.al-search-result-placeholder { width:58px; height:78px; border-radius:7px; object-fit:cover; background:var(--background-primary-alt); }
+.al-search-result img,.al-search-result-placeholder { width:58px; height:78px; min-width:58px; min-height:78px; border-radius:7px; object-fit:cover; background:var(--background-primary-alt); flex-shrink:0; display:block; }
 .al-search-result-placeholder { display:grid; place-items:center; color:var(--text-faint); font-size:.5rem; text-align:center; }
 .al-search-result-body { display:flex; min-width:0; flex-direction:column; gap:4px; }
 .al-search-result-body strong { overflow:hidden; font-size:.82rem; white-space:nowrap; text-overflow:ellipsis; }
@@ -214,8 +218,11 @@
   .modal.animelist-modal { width:calc(100vw - 18px); }
   .al-media-form { grid-template-columns:1fr; }
   .al-form-field:first-child,.al-form-checkbox { grid-column:auto; }
-  .al-search-result { grid-template-columns:52px minmax(0,1fr); }
-  .al-search-result img,.al-search-result-placeholder { width:52px; height:72px; }
+  .animelist-modal button.al-search-result,
+  .animelist-modal .al-search-result,
+  button.al-search-result,
+  .al-search-result { grid-template-columns:52px minmax(0,1fr); height:auto; min-height:88px; padding:8px; }
+  .al-search-result img,.al-search-result-placeholder { width:52px; height:72px; min-width:52px; min-height:72px; }
   .al-search-result-use { display:none; }
 }
 

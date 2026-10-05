@@ -45,6 +45,16 @@ declare module "obsidian" {
     text: string;
   }
 
+  export const Platform: {
+    isDesktop: boolean;
+    isMobile: boolean;
+    isMacOS: boolean;
+    isWin: boolean;
+    isLinux: boolean;
+    isIosApp: boolean;
+    isAndroidApp: boolean;
+  };
+
   export type EventRef = object;
 
   export class Component {

@@ -4,6 +4,7 @@ import { setRequestUrlMock } from "../mocks/obsidian";
 import { AniListClient } from "../../src/data/providers/anilist-client";
 import { BangumiClient } from "../../src/data/providers/bangumi-client";
 import { OpenLibraryClient } from "../../src/data/providers/open-library-client";
+import { normalizeBangumiSubject } from "../../src/data/provider-normalizers";
 
 const originalWindow = globalThis.window;
 before(() => {
@@ -99,6 +100,112 @@ describe("metadata provider clients", () => {
     } finally {
       setRequestUrlMock(null);
     }
+  });
+
+  it("resolves direct subject ID or Bangumi URL query via fetchById", async () => {
+    const requestedUrls: string[] = [];
+    setRequestUrlMock((options) => {
+      requestedUrls.push(options.url);
+      if (options.url.endsWith("/persons")) {
+        return { json: [], text: "" };
+      }
+      return {
+        json: {
+          id: 400602,
+          name: "葬送のフリーレン",
+          name_cn: "葬送的芙莉莲",
+          images: {},
+          rating: { score: 8.5 },
+          eps: 28,
+        },
+        text: "",
+      };
+    });
+    try {
+      const client = new BangumiClient();
+      const byId = await client.searchPage("anime", "400602", 1);
+      assert.ok(requestedUrls.some((u) => u.includes("/v0/subjects/400602")));
+      assert.equal(byId.results.length, 1);
+      assert.equal(byId.results[0]?.sourceId, "400602");
+      assert.equal(byId.results[0]?.title, "葬送的芙莉莲");
+
+      requestedUrls.length = 0;
+      const byUrl = await client.searchPage("anime", "https://bgm.tv/subject/400602", 1);
+      assert.ok(requestedUrls.some((u) => u.includes("/v0/subjects/400602")));
+      assert.equal(byUrl.results.length, 1);
+      assert.equal(byUrl.results[0]?.title, "葬送的芙莉莲");
+    } finally {
+      setRequestUrlMock(null);
+    }
+  });
+
+  it("attaches Authorization header when access token is provided", async () => {
+    let capturedHeaders: Record<string, string> = {};
+    setRequestUrlMock((options) => {
+      capturedHeaders = options.headers;
+      return {
+        json: { total: 0, data: [] },
+        text: "",
+      };
+    });
+    try {
+      const client = new BangumiClient(() => "my_secret_token");
+      await client.searchPage("anime", "Test", 1);
+      assert.equal(capturedHeaders.Authorization, "Bearer my_secret_token");
+    } finally {
+      setRequestUrlMock(null);
+    }
+  });
+
+  it("falls back to legacy GET search when v0 returns 0 results or fails", async () => {
+    const urls: string[] = [];
+    setRequestUrlMock((options) => {
+      urls.push(options.url);
+      if (options.method === "POST") {
+        return { json: { total: 0, data: [] }, text: "" };
+      }
+      if (options.method === "GET") {
+        return {
+          json: {
+            results: 1,
+            list: [{
+              id: 999,
+              name: "Original Title",
+              name_cn: "中文标题",
+              type: 2,
+              rating: { score: 8 },
+              eps: 12,
+              images: {},
+            }],
+          },
+          text: "",
+        };
+      }
+      return { status: 200 };
+    });
+    try {
+      const client = new BangumiClient();
+      const page = await client.searchPage("anime", "86 -不存在的战区-", 1);
+      assert.equal(urls.length, 2, "Must query v0 then fallback to legacy");
+      assert.match(urls[0], /\/v0\/search\/subjects/);
+      assert.match(urls[1], /\/search\/subject\//);
+      assert.equal(page.results.length, 1);
+      assert.equal(page.results[0]?.title, "中文标题");
+    } finally {
+      setRequestUrlMock(null);
+    }
+  });
+
+  it("normalizes Bangumi subject correctly when name_cn is empty string", () => {
+    const raw = {
+      id: 12345,
+      name: "Original Japanese Name",
+      name_cn: "",
+      images: {},
+      rating: { score: 7.5 },
+    };
+    const result = normalizeBangumiSubject(raw, "anime");
+    assert.equal(result.title, "Original Japanese Name", "Title must fall back to originalTitle when name_cn is empty");
   });
 
 

@@ -143,7 +143,8 @@ function bangumiInfoboxValues(infobox: unknown, keys: readonly string[]): string
 export function normalizeBangumiSubject(value: unknown, mediaType: MediaType): ExternalMediaResult {
   const subject = record(value);
   const originalTitle = stringValue(subject.name).trim();
-  const localTitle = stringValue(subject.name_cn, originalTitle || uiText("media.untitled")).trim();
+  const nameCn = stringValue(subject.name_cn).trim();
+  const localTitle = nameCn || originalTitle || uiText("media.untitled");
   const images = record(subject.images);
   const people = mediaType === "anime"
     ? normalizeAnimeStudios(bangumiInfoboxValues(subject.infobox, BANGUMI_ANIMATION_STUDIO_FIELDS))

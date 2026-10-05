@@ -9,9 +9,11 @@ export interface HttpMetadataProviderClients extends MetadataProviderClients {
   openlibrary: OpenLibraryClient;
 }
 
-export function createMetadataProviderClients(): HttpMetadataProviderClients {
+export function createMetadataProviderClients(
+  getBangumiToken?: () => string,
+): HttpMetadataProviderClients {
   return {
-    bangumi: new BangumiClient(),
+    bangumi: new BangumiClient(getBangumiToken),
     anilist: new AniListClient(),
     openlibrary: new OpenLibraryClient(),
   };

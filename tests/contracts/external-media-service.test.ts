@@ -237,4 +237,48 @@ describe("external media search service", () => {
     assert.equal(output.hasMore, true);
     assert.deepEqual(output.warnings, ["AniList: rate limited"]);
   });
+
+  it("returns exact subject when user searches with Bangumi URL or ID", async () => {
+    const providerClients = clients({
+      bangumi: client("bangumi", "Bangumi", () => true, async (_mediaType, query) => {
+        if (query.includes("400602")) {
+          return { results: [result("bangumi", "400602", "葬送的芙莉莲")], hasMore: false };
+        }
+        return { results: [], hasMore: false };
+      }, true),
+    });
+    const service = new ExternalMediaSearchService(
+      () => ({ bangumi: true, anilist: false, openlibrary: false }),
+      providerClients,
+    );
+
+    const outputById = await service.search("anime", "400602");
+    assert.equal(outputById.results.length, 1);
+    assert.equal(outputById.results[0]?.sourceId, "400602");
+    assert.equal(outputById.results[0]?.title, "葬送的芙莉莲");
+
+    const outputByUrl = await service.search("anime", "https://bgm.tv/subject/400602");
+    assert.equal(outputByUrl.results.length, 1);
+    assert.equal(outputByUrl.results[0]?.sourceId, "400602");
+  });
+
+  it("searches and returns results for titles like psyren", async () => {
+    const providerClients = clients({
+      bangumi: client("bangumi", "Bangumi", () => true, async (_mediaType, query) => {
+        if (query.toLowerCase().includes("psyren")) {
+          return { results: [result("bangumi", "614640", "PSYREN -决战游戏-")], hasMore: false };
+        }
+        return { results: [], hasMore: false };
+      }, true),
+    });
+    const service = new ExternalMediaSearchService(
+      () => ({ bangumi: true, anilist: false, openlibrary: false }),
+      providerClients,
+    );
+
+    const output = await service.search("anime", "psyren");
+    assert.equal(output.results.length, 1);
+    assert.equal(output.results[0]?.sourceId, "614640");
+    assert.equal(output.results[0]?.title, "PSYREN -决战游戏-");
+  });
 });

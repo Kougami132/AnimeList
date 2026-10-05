@@ -54,6 +54,16 @@ export class TFolder extends TAbstractFile {
 export class Notice { constructor(_message?: string) {} }
 export class App {}
 
+export const Platform = {
+  isDesktop: true,
+  isMobile: false,
+  isMacOS: false,
+  isWin: true,
+  isLinux: false,
+  isIosApp: false,
+  isAndroidApp: false,
+};
+
 export class MenuItem {
   title = "";
   icon: string | null = null;

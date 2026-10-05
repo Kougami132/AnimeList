@@ -1,3 +1,4 @@
+import { Platform } from "obsidian";
 import type { AnimeListFeature, AnimeListFeatureHost } from "./app/feature-types";
 import { registerBundledLocales } from "./i18n/locales";
 import { additionalProgressUnitsFeature } from "./features/progress/additional-progress-units";
@@ -21,6 +22,16 @@ import { versionCleanupSettingsFeature } from "./features/version-cleanup/settin
 import { bangumiSyncFeature } from "./features/bangumi-sync/feature";
 
 registerBundledLocales();
+
+if (Platform.isDesktop) {
+  void import("node:dns")
+    .then((dnsModule) => {
+      dnsModule.setDefaultResultOrder?.("ipv4first");
+    })
+    .catch(() => {
+      // Ignored if unsupported
+    });
+}
 
 const FEATURES: readonly AnimeListFeature<AnimeListFeatureHost>[] = [
   progressUiFeature,

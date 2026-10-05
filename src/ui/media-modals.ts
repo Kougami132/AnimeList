@@ -164,7 +164,13 @@ export class AddMediaModal extends Modal {
       const response = await this.plugin.searchExternal(this.mediaType, this.query);
       this.results = response.results;
       this.warnings = response.warnings;
-      if (!this.results.length) new Notice(uiText("notice.searchNoResults"));
+      if (!this.results.length) {
+        if (this.warnings.length) {
+          new Notice(uiText("add.warning", { warnings: this.warnings.join("；") }));
+        } else {
+          new Notice(uiText("notice.searchNoResults"));
+        }
+      }
     } catch (error) {
       console.error("AnimeList external search failed", error);
       this.results = [];

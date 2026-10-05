@@ -53,6 +53,15 @@ _Avoid_: Naive sort comparison, Linear progress assumption
 The pull synchronization rule that automatically sets local progress to the entry's total episodes when the remote status is `completed` but remote `ep_status` is zero or less than the total, preventing finished shows from displaying incomplete or zero progress.
 _Avoid_: Empty completed progress, Zero progress override
 
+**Uncollected Subject Push (未收藏条目推送建档)**:
+The synchronization action that detects local anime notes with a valid Bangumi subject ID that have no existing remote collection, and pushes their status, progress, and score to Bangumi to create user collections.
+_Avoid_: Force overwrite, Blind remote push
+
+**Subject Metadata Refresh (条目元数据刷新)**:
+The synchronization sub-routine that refreshes stale or missing local anime metadata (such as newly determined total episodes, broadcast season, or external score) using the latest remote subject definition.
+_Avoid_: Frontmatter purge, Redundant scrape
+
+
 
 
 ## Storage & Settings

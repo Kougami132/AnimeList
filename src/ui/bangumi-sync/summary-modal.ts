@@ -30,6 +30,10 @@ export class SyncSummaryModal extends Modal {
     updateCard.createDiv({ cls: "al-bangumi-summary-number", text: String(this.summary.updated) });
     updateCard.createDiv({ cls: "al-bangumi-summary-label", text: bangumiSyncText("summary.updated", { count: this.summary.updated }) });
 
+    const pushCard = grid.createDiv({ cls: "al-bangumi-summary-card" });
+    pushCard.createDiv({ cls: "al-bangumi-summary-number", text: String(this.summary.pushed) });
+    pushCard.createDiv({ cls: "al-bangumi-summary-label", text: bangumiSyncText("summary.pushed", { count: this.summary.pushed }) });
+
     const syncedCard = grid.createDiv({ cls: "al-bangumi-summary-card" });
     syncedCard.createDiv({ cls: "al-bangumi-summary-number", text: String(this.summary.synced) });
     syncedCard.createDiv({ cls: "al-bangumi-summary-label", text: bangumiSyncText("summary.synced", { count: this.summary.synced }) });

@@ -13,20 +13,23 @@ export async function openBatchSyncWorkflow(host: AnimeListFeatureHost): Promise
   const notice = new Notice(bangumiSyncText("notice.fetchingCollections"), 0);
   try {
     const service = host.bangumiSyncService();
-    const collections = await service.fetchRecentCollections(
-      token,
-      host.settings.syncRecentDays,
-      host.settings.syncCollectionTypes,
-    );
+    const [collections, allCollectedIds] = await Promise.all([
+      service.fetchRecentCollections(
+        token,
+        host.settings.syncRecentDays,
+        host.settings.syncCollectionTypes,
+      ),
+      service.fetchAllCollectionSubjectIds(token),
+    ]);
 
     notice.hide();
 
-    if (collections.length === 0) {
+    const candidates = service.classifyCandidates(collections, allCollectedIds);
+    if (candidates.length === 0) {
       new Notice(bangumiSyncText("diff.noItems"));
       return;
     }
 
-    const candidates = service.classifyCandidates(collections);
     new DiffPreviewModal(host.app, host, candidates, service).open();
   } catch (error) {
     notice.hide();

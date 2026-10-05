@@ -1,6 +1,6 @@
 import { Modal, type App } from "obsidian";
 import type { AnimeListFeatureHost } from "../../app/feature-types";
-import type { BangumiSyncItem } from "../../domain/bangumi-sync/types";
+import type { BangumiSyncItem, BangumiSyncItemAction } from "../../domain/bangumi-sync/types";
 import type { BangumiSyncService } from "../../data/bangumi-sync/bangumi-sync-service";
 import { bangumiSyncText } from "../../features/bangumi-sync/text";
 import { SyncSummaryModal } from "./summary-modal";
@@ -8,6 +8,7 @@ import { SyncSummaryModal } from "./summary-modal";
 export class DiffPreviewModal extends Modal {
   private selectedIds: Set<number>;
   private filterQuery = "";
+  private activeFilterAction: BangumiSyncItemAction | "all" = "all";
   private isExecuting = false;
 
   constructor(
@@ -19,13 +20,14 @@ export class DiffPreviewModal extends Modal {
     super(app);
     this.selectedIds = new Set<number>();
     for (const item of items) {
-      if (item.action === "new" || item.action === "updated") {
+      if (item.action === "new" || item.action === "updated" || item.action === "push") {
         this.selectedIds.add(item.subjectId);
       }
     }
   }
 
   onOpen(): void {
+    this.modalEl.addClass("al-bangumi-diff-modal-window");
     this.render();
   }
 
@@ -37,6 +39,33 @@ export class DiffPreviewModal extends Modal {
     const header = contentEl.createDiv({ cls: "al-bangumi-modal-header" });
     header.createEl("h2", { text: bangumiSyncText("diff.title") });
     header.createEl("p", { cls: "animelist-settings-intro", text: bangumiSyncText("diff.description") });
+
+    // Category filter tabs
+    const categoryBar = contentEl.createDiv({ cls: "al-bangumi-category-bar" });
+    const categories: Array<{ id: BangumiSyncItemAction | "all"; label: string }> = [
+      { id: "all", label: "All" },
+      { id: "new", label: bangumiSyncText("diff.badgeNew") },
+      { id: "updated", label: bangumiSyncText("diff.badgeUpdated") },
+      { id: "push", label: bangumiSyncText("diff.badgePush") },
+      { id: "conflict", label: bangumiSyncText("diff.badgeConflict") },
+      { id: "synced", label: bangumiSyncText("diff.badgeSynced") },
+    ];
+    for (const cat of categories) {
+      const btn = categoryBar.createEl("button", {
+        cls: `al-bangumi-filter-btn${this.activeFilterAction === cat.id ? " is-active" : ""}`,
+        text: cat.label,
+      });
+      btn.type = "button";
+      btn.disabled = this.isExecuting;
+      btn.addEventListener("click", () => {
+        this.activeFilterAction = cat.id;
+        categoryBar.querySelectorAll<HTMLElement>(".al-bangumi-filter-btn").forEach((el) => {
+          el.removeClass("is-active");
+        });
+        btn.addClass("is-active");
+        this.updateList();
+      });
+    }
 
     // Search and selection actions bar
     const searchBar = contentEl.createDiv({ cls: "al-bangumi-search-bar" });
@@ -89,7 +118,7 @@ export class DiffPreviewModal extends Modal {
     // Footer toolbar
     const footer = contentEl.createDiv({ cls: "al-bangumi-diff-toolbar" });
     const countInfo = footer.createDiv({ cls: "al-bangumi-diff-meta" });
-    countInfo.textContent = `Selected: ${this.selectedIds.size} / ${this.items.length}`;
+    countInfo.textContent = this.formatCountText();
 
     const actions = footer.createDiv({ cls: "al-bangumi-diff-actions" });
 
@@ -139,12 +168,34 @@ export class DiffPreviewModal extends Modal {
   }
 
   private filteredItems(): BangumiSyncItem[] {
-    if (!this.filterQuery) return this.items;
-    return this.items.filter((item) => {
-      const titleMatch = item.title.toLocaleLowerCase().includes(this.filterQuery);
-      const originalMatch = item.originalTitle?.toLocaleLowerCase().includes(this.filterQuery);
-      return titleMatch || originalMatch;
-    });
+    let result = this.items;
+    if (this.activeFilterAction !== "all") {
+      result = result.filter((item) => item.action === this.activeFilterAction);
+    }
+    if (this.filterQuery) {
+      result = result.filter((item) => {
+        const titleMatch = item.title.toLocaleLowerCase().includes(this.filterQuery);
+        const originalMatch = item.originalTitle?.toLocaleLowerCase().includes(this.filterQuery);
+        return titleMatch || originalMatch;
+      });
+    }
+    return result;
+  }
+
+  private formatCountText(): string {
+    let pullCount = 0;
+    let pushCount = 0;
+    for (const item of this.items) {
+      if (this.selectedIds.has(item.subjectId)) {
+        if (item.action === "push") pushCount += 1;
+        else if (item.action === "new" || item.action === "updated") pullCount += 1;
+      }
+    }
+    const parts: string[] = [];
+    if (pullCount > 0) parts.push(`Pull: ${pullCount}`);
+    if (pushCount > 0) parts.push(`Push: ${pushCount}`);
+    const details = parts.length > 0 ? ` (${parts.join(", ")})` : "";
+    return `Selected: ${this.selectedIds.size} / ${this.items.length}${details}`;
   }
 
   private updateList(): void {
@@ -155,7 +206,7 @@ export class DiffPreviewModal extends Modal {
     }
     const countInfo = this.contentEl.querySelector<HTMLElement>(".al-bangumi-diff-toolbar .al-bangumi-diff-meta");
     if (countInfo) {
-      countInfo.textContent = `Selected: ${this.selectedIds.size} / ${this.items.length}`;
+      countInfo.textContent = this.formatCountText();
     }
     const syncBtn = this.contentEl.querySelector<HTMLButtonElement>(".mod-cta");
     if (syncBtn && !this.isExecuting) {
@@ -184,7 +235,7 @@ export class DiffPreviewModal extends Modal {
         if (checkbox.checked) this.selectedIds.add(item.subjectId);
         else this.selectedIds.delete(item.subjectId);
         const countInfo = this.contentEl.querySelector<HTMLElement>(".al-bangumi-diff-toolbar .al-bangumi-diff-meta");
-        if (countInfo) countInfo.textContent = `Selected: ${this.selectedIds.size} / ${this.items.length}`;
+        if (countInfo) countInfo.textContent = this.formatCountText();
         const syncBtn = this.contentEl.querySelector<HTMLButtonElement>(".mod-cta");
         if (syncBtn && !this.isExecuting) syncBtn.disabled = this.selectedIds.size === 0;
       });
@@ -207,12 +258,18 @@ export class DiffPreviewModal extends Modal {
     switch (action) {
       case "new": return bangumiSyncText("diff.badgeNew");
       case "updated": return bangumiSyncText("diff.badgeUpdated");
+      case "push": return bangumiSyncText("diff.badgePush");
       case "conflict": return bangumiSyncText("diff.badgeConflict");
       case "synced": return bangumiSyncText("diff.badgeSynced");
     }
   }
 
   private diffDescription(item: BangumiSyncItem): string {
+    if (item.action === "push") {
+      const totalStr = item.totalEps ? ` / ${item.totalEps}` : "";
+      const scoreStr = item.localScore ? ` · Score: ${item.localScore}` : "";
+      return `Push to Bangumi · Ep ${item.localProgress ?? 0}${totalStr} · Status: ${item.localStatus || "ongoing"}${scoreStr}`;
+    }
     if (item.action === "new") {
       const totalStr = item.totalEps ? ` / ${item.totalEps}` : "";
       return `New anime · Ep ${item.remoteEpStatus}${totalStr} · Status: ${item.remoteStatus}`;

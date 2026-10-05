@@ -19,6 +19,13 @@ import { buildMediaMarkdown } from "../media-note-codec";
 import { getScopedMarkdownFiles } from "../vault-scope";
 import { slugify } from "../../domain/value-normalization";
 import { normalizeBangumiSubject } from "../provider-normalizers";
+import {
+  refreshSubjectMetadata,
+  extractMetadataFromBasicSubject,
+  extractMetadataFromNormalizedSubject,
+  shouldFetchDeepSubjectMetadata,
+  type SubjectMetadataRefreshInput,
+} from "../../domain/bangumi-sync/metadata-refresh";
 import { requestUrl } from "obsidian";
 import { USER_AGENT } from "../../app-metadata";
 import { catalogText } from "../../i18n/catalog";
@@ -30,6 +37,7 @@ export interface BangumiSyncCallbacks {
 
 export type SingleSyncResult =
   | { kind: "success"; subjectId: number; title: string; changed: boolean; pushedScore: number | null }
+  | { kind: "pushed"; subjectId: number; title: string }
   | { kind: "conflict"; subjectId: number; title: string; reason: string; localScore: number; remoteRate: number }
   | { kind: "not_collected"; subjectId: number; title: string }
   | { kind: "error"; subjectId: number; title: string; message: string };
@@ -81,6 +89,10 @@ export class BangumiSyncService {
     return matches;
   }
 
+  async fetchAllCollectionSubjectIds(token: string): Promise<Set<number>> {
+    return this.client.fetchAllCollectionSubjectIds(token);
+  }
+
   async syncSingleNote(file: TFile): Promise<SingleSyncResult> {
     const token = this.settings().bangumiAccessToken.trim();
     if (!token) {
@@ -101,8 +113,37 @@ export class BangumiSyncService {
     try {
       const collection = await this.client.fetchCollection(token, subjectId);
       if (!collection) {
-        new Notice(`"${title}" is not in your Bangumi collection.`);
-        return { kind: "not_collected", subjectId, title };
+        const localStatus = typeof fm?.status === "string" ? fm.status : "";
+        const localProgress = typeof fm?.progress === "number" ? fm.progress : 0;
+        const localScore = typeof fm?.score === "number" && fm.score > 0 ? fm.score : null;
+
+        const pushResult = await this.pushAnimeData(
+          subjectId,
+          title,
+          { status: localStatus, progress: localProgress, score: localScore },
+          { silent: true },
+        );
+
+        if (pushResult.kind === "error") {
+          return { kind: "error", subjectId, title, message: pushResult.message };
+        }
+
+        try {
+          const rawSubject = await this.client.fetchSubject(subjectId);
+          if (rawSubject) {
+            const normalized = normalizeBangumiSubject(rawSubject, "anime");
+            const refreshInput = extractMetadataFromNormalizedSubject(normalized);
+            await this.app.fileManager.processFrontMatter(file, (draft) => {
+              refreshSubjectMetadata(draft, refreshInput);
+            });
+          }
+        } catch {
+          // best-effort metadata refresh
+        }
+
+        this.callbacks?.refreshViews();
+        new Notice(bangumiText("notice.uncollectedPushed", { title }));
+        return { kind: "pushed", subjectId, title };
       }
 
       const local: LocalMediaState = {
@@ -119,12 +160,34 @@ export class BangumiSyncService {
         updatedAt: collection.updated_at ?? "",
       };
 
-      const localTotal = typeof fm?.episodes === "number" && fm.episodes > 0
-        ? fm.episodes
-        : typeof fm?.total === "number" && fm.total > 0
-          ? fm.total
-          : 0;
-      const remoteEps = collection.subject?.eps ?? collection.subject?.total_episodes ?? 0;
+      const localTotal = typeof fm?.progress_total === "number" && fm.progress_total > 0
+        ? fm.progress_total
+        : typeof fm?.episodes === "number" && fm.episodes > 0
+          ? fm.episodes
+          : typeof fm?.total === "number" && fm.total > 0
+            ? fm.total
+            : 0;
+
+      let refreshInput: SubjectMetadataRefreshInput;
+      if (shouldFetchDeepSubjectMetadata(fm ?? {}, collection.subject)) {
+        try {
+          const rawSubject = await this.client.fetchSubject(subjectId);
+          if (rawSubject) {
+            const normalized = normalizeBangumiSubject(rawSubject, "anime");
+            refreshInput = extractMetadataFromNormalizedSubject(normalized, collection.subject);
+          } else {
+            refreshInput = extractMetadataFromBasicSubject(collection.subject);
+          }
+        } catch {
+          refreshInput = extractMetadataFromBasicSubject(collection.subject);
+        }
+      } else {
+        refreshInput = extractMetadataFromBasicSubject(collection.subject);
+      }
+
+      const remoteEps = (refreshInput.totalEpisodes && refreshInput.totalEpisodes > 0)
+        ? refreshInput.totalEpisodes
+        : (collection.subject?.eps ?? collection.subject?.total_episodes ?? 0);
       const totalEpisodes = remoteEps > 0 ? remoteEps : localTotal;
 
       const reconciled = reconcileSingleItem(local, remote, totalEpisodes);
@@ -156,6 +219,7 @@ export class BangumiSyncService {
         if (reconciled.completedAt) draft.completed_at = reconciled.completedAt;
         if (reconciled.score != null) draft.score = reconciled.score;
         else delete draft.score;
+        refreshSubjectMetadata(draft, refreshInput);
       });
 
       this.callbacks?.refreshViews();
@@ -181,6 +245,7 @@ export class BangumiSyncService {
     subjectId: number,
     title: string,
     data: { status: string; progress: number; score: number | null },
+    options?: { silent?: boolean },
   ): Promise<SinglePushResult> {
     const token = this.settings().bangumiAccessToken.trim();
     if (!token) {
@@ -209,7 +274,9 @@ export class BangumiSyncService {
       } catch (epError) {
         console.warn(`Bangumi episode progress update failed for "${title}":`, epError);
       }
-      new Notice(bangumiText("notice.pushSuccess", { title }));
+      if (!options?.silent) {
+        new Notice(bangumiText("notice.pushSuccess", { title }));
+      }
       return { kind: "success", subjectId, title };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Push failed";
@@ -298,6 +365,7 @@ export class BangumiSyncService {
 
   classifyCandidates(
     collections: BangumiCollectionResponseItem[],
+    allCollectedSubjectIds?: Set<number>,
   ): BangumiSyncItem[] {
     const localNotes = this.getBangumiAnimeNotes();
     const notesBySubjectId = new Map<number, { file: TFile; frontmatter: Record<string, unknown> }>();
@@ -306,6 +374,7 @@ export class BangumiSyncService {
     }
 
     const items: BangumiSyncItem[] = [];
+    const syncedItems: BangumiSyncItem[] = [];
 
     for (const col of collections) {
       const subject = col.subject;
@@ -348,11 +417,13 @@ export class BangumiSyncService {
         updatedAt: col.updated_at ?? "",
       };
 
-      const localTotal = typeof fm.episodes === "number" && fm.episodes > 0
-        ? fm.episodes
-        : typeof fm.total === "number" && fm.total > 0
-          ? fm.total
-          : 0;
+      const localTotal = typeof fm.progress_total === "number" && fm.progress_total > 0
+        ? fm.progress_total
+        : typeof fm.episodes === "number" && fm.episodes > 0
+          ? fm.episodes
+          : typeof fm.total === "number" && fm.total > 0
+            ? fm.total
+            : 0;
       const remoteEps = col.subject?.eps ?? col.subject?.total_episodes ?? 0;
       const totalEpisodes = remoteEps > 0 ? remoteEps : localTotal;
 
@@ -394,7 +465,7 @@ export class BangumiSyncService {
           totalEps: col.subject?.eps,
         });
       } else {
-        items.push({
+        syncedItems.push({
           subjectId: col.subject_id,
           title: titleString(fm.title, title),
           originalTitle,
@@ -413,14 +484,84 @@ export class BangumiSyncService {
       }
     }
 
+    if (allCollectedSubjectIds) {
+      for (const entry of localNotes) {
+        if (!allCollectedSubjectIds.has(entry.subjectId)) {
+          const fm = entry.frontmatter;
+          const title = titleString(fm.title, entry.file.basename);
+          const originalTitle = typeof fm.title_original === "string" ? fm.title_original : undefined;
+          const status = typeof fm.status === "string" ? fm.status : "";
+          const progress = typeof fm.progress === "number" ? fm.progress : 0;
+          const score = typeof fm.score === "number" && fm.score > 0 ? fm.score : null;
+          const coverUrl = typeof fm.cover === "string" ? fm.cover : undefined;
+          const totalEps = typeof fm.progress_total === "number" && fm.progress_total > 0
+            ? fm.progress_total
+            : typeof fm.episodes === "number" && fm.episodes > 0
+              ? fm.episodes
+              : typeof fm.total === "number" && fm.total > 0
+                ? fm.total
+                : undefined;
+
+          items.push({
+            subjectId: entry.subjectId,
+            title,
+            originalTitle,
+            action: "push",
+            localPath: entry.file.path,
+            localStatus: status,
+            localProgress: progress,
+            localScore: score,
+            coverUrl,
+            totalEps,
+          });
+        }
+      }
+    }
+
+    items.push(...syncedItems);
+
     return items;
   }
 
   async applyBatchItem(
     _token: string,
     item: BangumiSyncItem,
-  ): Promise<"added" | "updated" | "skipped"> {
+  ): Promise<"added" | "updated" | "pushed" | "skipped"> {
     if (item.action === "conflict" || item.action === "synced") {
+      return "skipped";
+    }
+
+    if (item.action === "push" && item.localPath) {
+      const file = this.app.vault.getAbstractFileByPath(item.localPath);
+      if (file instanceof TFile) {
+        const cache = this.app.metadataCache.getFileCache(file);
+        const fm = cache?.frontmatter;
+        const status = typeof fm?.status === "string" ? fm.status : (item.localStatus || "");
+        const progress = typeof fm?.progress === "number" ? fm.progress : (item.localProgress || 0);
+        const score = typeof fm?.score === "number" && fm.score > 0 ? fm.score : (item.localScore || null);
+
+        const pushResult = await this.pushAnimeData(item.subjectId, item.title, { status, progress, score }, { silent: true });
+        if (pushResult.kind === "success") {
+          try {
+            const rawSubject = await this.client.fetchSubject(item.subjectId);
+            if (rawSubject) {
+              const normalized = normalizeBangumiSubject(rawSubject, "anime");
+              await this.app.fileManager.processFrontMatter(file, (draft) => {
+                refreshSubjectMetadata(
+                  draft,
+                  extractMetadataFromNormalizedSubject(
+                    normalized,
+                    item.totalEps ? { eps: item.totalEps } : null,
+                  ),
+                );
+              });
+            }
+          } catch {
+            // best-effort metadata refresh
+          }
+          return "pushed";
+        }
+      }
       return "skipped";
     }
 
@@ -428,7 +569,7 @@ export class BangumiSyncService {
       const file = this.app.vault.getAbstractFileByPath(item.localPath);
       if (file instanceof TFile) {
         const result = await this.syncSingleNote(file);
-        if (result.kind === "success") return "updated";
+        if (result.kind === "success" || result.kind === "pushed") return "updated";
       }
       return "skipped";
     }
@@ -585,6 +726,7 @@ export class BangumiSyncService {
     const summary: BangumiSyncSummary = {
       added: 0,
       updated: 0,
+      pushed: 0,
       synced: 0,
       conflicts: [],
       errors: [],
@@ -613,6 +755,7 @@ export class BangumiSyncService {
         const actionResult = await this.applyBatchItem(token, item);
         if (actionResult === "added") summary.added += 1;
         else if (actionResult === "updated") summary.updated += 1;
+        else if (actionResult === "pushed") summary.pushed += 1;
         else summary.synced += 1;
       } catch (err) {
         summary.errors.push(`Failed to sync "${item.title}": ${err instanceof Error ? err.message : String(err)}`);
@@ -648,23 +791,27 @@ export class BangumiSyncService {
         s.syncRecentDays,
         s.syncCollectionTypes,
       );
+      const allCollectedIds = await this.fetchAllCollectionSubjectIds(token);
 
-      const candidates = this.classifyCandidates(recentCollections);
-      // Existing Note Sync strategy: only items that exist in vault are updated; new subjects ignored
-      const existingCandidates = candidates.filter((item) => item.action === "updated" || item.action === "conflict");
+      const candidates = this.classifyCandidates(recentCollections, allCollectedIds);
+      // Auto-sync: only items that exist in vault are updated or uncollected items pushed
+      const autoSyncCandidates = candidates.filter(
+        (item) => item.action === "updated" || item.action === "conflict" || item.action === "push"
+      );
 
-      if (existingCandidates.length === 0) {
+      if (autoSyncCandidates.length === 0) {
         s.lastSyncTimestamp = now;
         await this.callbacks?.saveSettings();
         return null;
       }
 
-      const summary = await this.executeBatchSync(token, existingCandidates);
+      const summary = await this.executeBatchSync(token, autoSyncCandidates);
 
-      // Lightweight toast notification summarizing updates or conflicts
-      if (summary.updated > 0 || summary.conflicts.length > 0) {
+      // Lightweight toast notification summarizing updates, pushes, or conflicts
+      if (summary.updated > 0 || summary.pushed > 0 || summary.conflicts.length > 0) {
         const parts: string[] = [];
         if (summary.updated > 0) parts.push(`updated ${summary.updated} anime`);
+        if (summary.pushed > 0) parts.push(`pushed ${summary.pushed} anime`);
         if (summary.conflicts.length > 0) parts.push(`${summary.conflicts.length} score conflict(s)`);
         new Notice(`Bangumi auto-sync completed: ${parts.join(", ")}.`);
       }

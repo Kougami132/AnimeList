@@ -66,6 +66,8 @@ export interface BangumiCollectionResponseItem {
     name_cn: string;
     eps?: number;
     total_episodes?: number;
+    score?: number;
+    date?: string;
     images?: {
       large?: string;
       common?: string;
@@ -219,6 +221,45 @@ export class BangumiSyncClient {
       offset: numProp(data, "offset", 0),
       data: list as BangumiCollectionResponseItem[],
     };
+  }
+
+  async fetchAllCollectionSubjectIds(
+    token: string,
+    options?: { username?: string; limit?: number },
+  ): Promise<Set<number>> {
+    const trimmed = token.trim();
+    if (!trimmed) throw new Error("Bangumi Personal Access Token is required.");
+
+    const user = options?.username || await this.getUsername(trimmed);
+    const subjectIds = new Set<number>();
+    const limit = options?.limit ?? 50;
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const page = await this.fetchUserCollections(token, {
+        subjectType: 2, // anime
+        limit,
+        offset,
+        username: user,
+      });
+
+      if (!page.data || page.data.length === 0) break;
+      for (const item of page.data) {
+        if (typeof item.subject_id === "number") {
+          subjectIds.add(item.subject_id);
+        }
+      }
+
+      const effectiveLimit = page.limit || limit;
+      if (page.data.length < effectiveLimit || offset + page.data.length >= page.total) {
+        hasMore = false;
+      } else {
+        offset += page.data.length;
+      }
+    }
+
+    return subjectIds;
   }
 
   async fetchCollection(token: string, subjectId: number, username?: string): Promise<BangumiCollectionResponseItem | null> {

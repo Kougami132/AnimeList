@@ -18,6 +18,13 @@ import { validateMediaNoteForm } from "../src/data/media-note-codec";
 import { BangumiSyncService } from "../src/data/bangumi-sync/bangumi-sync-service";
 import { bangumiSyncFeature } from "../src/features/bangumi-sync/feature";
 import { decorateBangumiDetail } from "../src/features/bangumi-sync/detail";
+import { DiffPreviewModal } from "../src/ui/bangumi-sync/diff-modal";
+import {
+  refreshSubjectMetadata,
+  shouldFetchDeepSubjectMetadata,
+  extractMetadataFromNormalizedSubject,
+  extractMetadataFromBasicSubject,
+} from "../src/domain/bangumi-sync/metadata-refresh";
 import { TFile, TFolder } from "obsidian";
 import type { ExternalMediaResult, MediaNoteForm } from "../src/domain/media-types";
 
@@ -1914,5 +1921,579 @@ describe("bangumiSyncFeature commands and lifecycle", () => {
     } finally {
       (globalThis as any).createEl = previousCreateEl;
     }
+  });
+});
+
+describe("Subject metadata refresh and completed alignment domain", () => {
+  it("updates progress_total and aligns progress when anime is completed", () => {
+    const draft: Record<string, unknown> = {
+      title: "Solo Leveling",
+      status: "completed",
+      progress: 0,
+      progress_total: 0,
+      score: 9,
+    };
+    const changed = refreshSubjectMetadata(draft, {
+      totalEpisodes: 12,
+      sourceScore: 8.3,
+    });
+    assert.equal(changed, true);
+    assert.equal(draft.progress_total, 12);
+    assert.equal(draft.progress, 12, "Completed anime progress must align to new total");
+    assert.equal(draft.source_score, 8.3);
+    assert.equal(draft.score, 9, "User score must be preserved");
+  });
+
+  it("does not force progress alignment when anime is ongoing", () => {
+    const draft: Record<string, unknown> = {
+      title: "One Piece",
+      status: "ongoing",
+      progress: 50,
+      progress_total: 0,
+    };
+    const changed = refreshSubjectMetadata(draft, {
+      totalEpisodes: 1100,
+    });
+    assert.equal(changed, true);
+    assert.equal(draft.progress_total, 1100);
+    assert.equal(draft.progress, 50, "Ongoing anime progress must not be overwritten");
+  });
+
+  it("enriches missing broadcast season, studios, and original title without touching existing", () => {
+    const draft: Record<string, unknown> = {
+      title: "Bocchi the Rock!",
+      season: "",
+      studios: [],
+      title_original: "",
+      user_tags: ["music", "comedy"],
+      started_at: "2022-10-01",
+      completed_at: "2022-12-25",
+    };
+    const changed = refreshSubjectMetadata(draft, {
+      season: "fall",
+      seasonYear: 2022,
+      studios: ["CloverWorks"],
+      originalTitle: "ぼっち・ざ・ろっく！",
+    });
+    assert.equal(changed, true);
+    assert.equal(draft.season, "fall");
+    assert.equal(draft.season_year, 2022);
+    assert.deepEqual(draft.studios, ["CloverWorks"]);
+    assert.equal(draft.title_original, "ぼっち・ざ・ろっく！");
+    assert.deepEqual(draft.user_tags, ["music", "comedy"]);
+    assert.equal(draft.started_at, "2022-10-01");
+    assert.equal(draft.completed_at, "2022-12-25");
+  });
+
+  it("shouldFetchDeepSubjectMetadata accurately detects notes missing core metadata", () => {
+    assert.equal(shouldFetchDeepSubjectMetadata({}, null), true, "Empty note needs deep metadata");
+    assert.equal(shouldFetchDeepSubjectMetadata({ studios: ["Kyoto Animation"] }, null), true, "Missing season needs deep metadata");
+    assert.equal(shouldFetchDeepSubjectMetadata({ studios: ["Kyoto Animation"], season: "spring" }, null), true, "Missing total episodes needs deep metadata");
+    assert.equal(
+      shouldFetchDeepSubjectMetadata(
+        { studios: ["Kyoto Animation"], season: "spring", progress_total: 12 },
+        null,
+      ),
+      false,
+      "Complete note does not need deep metadata",
+    );
+    assert.equal(
+      shouldFetchDeepSubjectMetadata(
+        { studios: ["Kyoto Animation"], season: "spring" },
+        { eps: 12 },
+      ),
+      false,
+      "Basic subject providing eps avoids deep fetch",
+    );
+  });
+});
+
+describe("BangumiSyncClient.fetchAllCollectionSubjectIds", () => {
+  it("paginates user collections and returns all subject IDs as a Set", async () => {
+    let callCount = 0;
+    setRequestUrlMock((options) => {
+      const url = new URL(options.url);
+      if (url.pathname === "/v0/me") {
+        return { status: 200, json: { username: "testuser" } };
+      }
+      if (url.pathname.includes("/collections")) {
+        callCount += 1;
+        const offset = Number(url.searchParams.get("offset") || "0");
+        if (offset === 0) {
+          return {
+            status: 200,
+            json: {
+              total: 3,
+              limit: 2,
+              offset: 0,
+              data: [{ subject_id: 101 }, { subject_id: 102 }],
+            },
+          };
+        }
+        return {
+          status: 200,
+          json: {
+            total: 3,
+            limit: 2,
+            offset: 2,
+            data: [{ subject_id: 103 }],
+          },
+        };
+      }
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const ids = await client.fetchAllCollectionSubjectIds("test_token", { limit: 2 });
+    assert.equal(callCount, 2);
+    assert.deepEqual([...ids].sort(), [101, 102, 103]);
+  });
+});
+
+describe("Uncollected subject push on single note sync", () => {
+  function createTestHarness(initialFm: Record<string, unknown>) {
+    const file = new TFile();
+    file.path = "AnimeList/Anime/Uncollected.md";
+    file.basename = "Uncollected";
+    const frontmatter = { ...initialFm };
+    const app = {
+      vault: {
+        getAbstractFileByPath(path: string) { return path === file.path ? file : null; },
+      },
+      metadataCache: {
+        getFileCache(target: TFile) { return target === file ? { frontmatter } : null; },
+      },
+      fileManager: {
+        async processFrontMatter(target: TFile, apply: (value: Record<string, unknown>) => void) {
+          assert.equal(target, file);
+          apply(frontmatter);
+        },
+      },
+    };
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      bangumiAccessToken: "valid_test_token",
+    };
+    return { app: app as any, file, frontmatter, settings };
+  }
+
+  it("initiates uncollected push when subject is not in user collection, creating collection and returning pushed", async () => {
+    const { app, file, frontmatter, settings } = createTestHarness({
+      title: "Dungeon Meshi",
+      source_provider: "bangumi",
+      source_id: 999,
+      status: "ongoing",
+      progress: 7,
+      score: 8.5,
+    });
+
+    let postedPayload: any = null;
+    let episodesUpdated = false;
+    let deepSubjectFetched = false;
+
+    setRequestUrlMock((options) => {
+      const url = new URL(options.url);
+      if (url.pathname === "/v0/me") {
+        return { status: 200, json: { username: "testuser" } };
+      }
+      if (options.method === "GET" && url.pathname.includes("/users/testuser/collections/999")) {
+        return { status: 404, text: "Not Found" };
+      }
+      if (options.method === "PATCH" && url.pathname.includes("/collections/999")) {
+        return { status: 404, text: "Not Found" };
+      }
+      if (options.method === "POST" && url.pathname.includes("/collections/999")) {
+        postedPayload = JSON.parse(options.body);
+        return { status: 201 };
+      }
+      if (url.pathname.includes("/episodes")) {
+        episodesUpdated = true;
+        return { status: 200, json: { data: [] } };
+      }
+      if (options.method === "GET" && url.pathname === "/v0/subjects/999") {
+        deepSubjectFetched = true;
+        return {
+          status: 200,
+          json: {
+            id: 999,
+            name: "ダンジョン飯",
+            eps: 24,
+            rating: { score: 8.4 },
+            infobox: [{ key: "动画制作", value: "Trigger" }],
+          },
+        };
+      }
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app, () => settings, client);
+
+    const result = await service.syncSingleNote(file);
+    assert.equal(result.kind, "pushed");
+    assert.equal(result.subjectId, 999);
+    assert.deepEqual(postedPayload, { rate: 8, type: 3 });
+    assert.equal(episodesUpdated, true);
+    assert.equal(deepSubjectFetched, true);
+    assert.equal(frontmatter.progress_total, 24);
+    assert.equal(frontmatter.source_score, 8.4);
+    assert.deepEqual(frontmatter.studios, ["Trigger"]);
+    assert.equal(frontmatter.title_original, "ダンジョン飯");
+    assert.equal(frontmatter.score, 8.5, "User local score must remain intact");
+  });
+});
+
+describe("Uncollected discovery and DiffPreviewModal push group", () => {
+  it("classifyCandidates identifies local notes not in collected set as action: push", () => {
+    const file1 = new TFile();
+    file1.path = "AnimeList/Anime/A.md";
+    file1.basename = "A";
+    const file2 = new TFile();
+    file2.path = "AnimeList/Anime/B.md";
+    file2.basename = "B";
+
+    const localNotes = [
+      { file: file1, subjectId: 100, frontmatter: { title: "Anime A", status: "ongoing", progress: 3, source_provider: "bangumi", source_id: 100 } },
+      { file: file2, subjectId: 200, frontmatter: { title: "Anime B", status: "completed", progress: 12, progress_total: 12, score: 9, source_provider: "bangumi", source_id: 200 } },
+    ];
+
+    const files = [file1, file2];
+    const folder = new TFolder();
+    folder.path = "AnimeList";
+    folder.children = files;
+
+    const app = {
+      vault: {
+        getAbstractFileByPath: (path: string) => (path === "AnimeList" ? folder : null),
+        getMarkdownFiles: () => files,
+      },
+      metadataCache: {
+        getFileCache: (f: TFile) => {
+          const found = localNotes.find((n) => n.file === f);
+          return found ? { frontmatter: found.frontmatter } : null;
+        },
+      },
+    };
+
+    const service = new BangumiSyncService(app as any, () => DEFAULT_SETTINGS);
+    const collections = [
+      {
+        subject_id: 100,
+        subject_type: 2,
+        rate: 0,
+        type: 3,
+        ep_status: 3,
+        vol_status: 0,
+        updated_at: "2024-03-01T00:00:00Z",
+      },
+    ];
+    const allCollectedIds = new Set([100]);
+
+    const candidates = service.classifyCandidates(collections, allCollectedIds);
+    assert.equal(candidates.length, 2);
+
+    assert.equal(candidates[0].action, "push", "Push items must be placed before synced items");
+    assert.equal(candidates[1].action, "synced");
+
+    const syncedItem = candidates.find((c) => c.subjectId === 100);
+    assert.ok(syncedItem);
+    assert.equal(syncedItem.action, "synced");
+
+    const pushItem = candidates.find((c) => c.subjectId === 200);
+    assert.ok(pushItem);
+    assert.equal(pushItem.action, "push");
+    assert.equal(pushItem.localStatus, "completed");
+    assert.equal(pushItem.localProgress, 12);
+    assert.equal(pushItem.localScore, 9);
+    assert.equal(pushItem.totalEps, 12);
+  });
+});
+
+describe("Batch sync and startup auto sync with push execution", () => {
+  it("executeBatchSync processes push items, updates remote and local metadata, and increments summary.pushed", async () => {
+    const file = new TFile();
+    file.path = "AnimeList/Anime/PushMe.md";
+    file.basename = "PushMe";
+    const frontmatter: Record<string, unknown> = {
+      title: "Push Me",
+      status: "completed",
+      progress: 12,
+      score: 8,
+    };
+
+    const app = {
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === file.path ? file : null),
+      },
+      metadataCache: {
+        getFileCache: () => ({ frontmatter }),
+      },
+      fileManager: {
+        processFrontMatter: async (_target: TFile, apply: Function) => {
+          apply(frontmatter);
+        },
+      },
+    };
+
+    let pushExecuted = false;
+    setRequestUrlMock((options) => {
+      const url = new URL(options.url);
+      if (options.method === "PATCH" && url.pathname.includes("/collections/888")) {
+        pushExecuted = true;
+        return { status: 200 };
+      }
+      if (url.pathname.includes("/episodes")) {
+        return { status: 200, json: { data: [] } };
+      }
+      if (options.method === "GET" && url.pathname === "/v0/subjects/888") {
+        return {
+          status: 200,
+          json: {
+            id: 888,
+            name: "Push Me",
+            eps: 12,
+            rating: { score: 7.9 },
+          },
+        };
+      }
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app as any, () => ({ ...DEFAULT_SETTINGS, bangumiAccessToken: "token" }), client);
+
+    const items = [
+      {
+        subjectId: 888,
+        title: "Push Me",
+        action: "push" as const,
+        localPath: file.path,
+        localStatus: "completed",
+        localProgress: 12,
+        localScore: 8,
+      },
+    ];
+
+    const summary = await service.executeBatchSync("token", items);
+    assert.equal(summary.pushed, 1);
+    assert.equal(pushExecuted, true);
+    assert.equal(frontmatter.source_score, 7.9);
+    assert.equal(frontmatter.progress_total, 12);
+  });
+
+  it("refreshes progress_total, source_score, and completed progress on syncSingleNote for collected anime", async () => {
+    const file = new TFile();
+    file.path = "AnimeList/Anime/Collected.md";
+    file.basename = "Collected";
+    const frontmatter: Record<string, unknown> = {
+      title: "Solo Leveling",
+      source_provider: "bangumi",
+      source_id: 400,
+      status: "completed",
+      progress: 0,
+      progress_total: 0,
+      score: 8.5,
+      completed_at: "2024-03-30",
+      user_tags: ["action", "fantasy"],
+    };
+
+    const app = {
+      vault: {
+        getAbstractFileByPath: (p: string) => (p === file.path ? file : null),
+      },
+      metadataCache: {
+        getFileCache: () => ({ frontmatter }),
+      },
+      fileManager: {
+        processFrontMatter: async (_target: TFile, apply: Function) => {
+          apply(frontmatter);
+        },
+      },
+    };
+
+    setRequestUrlMock((options) => {
+      const url = new URL(options.url);
+      if (url.pathname === "/v0/me") return { status: 200, json: { username: "testuser" } };
+      if (options.method === "GET" && url.pathname.includes("/users/testuser/collections/400")) {
+        return {
+          status: 200,
+          json: {
+            subject_id: 400,
+            type: 2, // completed
+            rate: 8, // matching floored 8.5
+            ep_status: 0, // unaligned remote ep_status
+            updated_at: "2024-03-31T00:00:00Z",
+            subject: {
+              id: 400,
+              name: "俺だけレベルアップな件",
+              eps: 12,
+              score: 8.1,
+            },
+          },
+        };
+      }
+      return { status: 200 };
+    });
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app as any, () => ({ ...DEFAULT_SETTINGS, bangumiAccessToken: "token" }), client);
+
+    const result = await service.syncSingleNote(file);
+    assert.equal(result.kind, "success");
+    assert.equal(frontmatter.progress_total, 12, "Total episodes must be refreshed from 0 to 12");
+    assert.equal(frontmatter.progress, 12, "Completed anime progress must be aligned to 12");
+    assert.equal(frontmatter.source_score, 8.1, "Bangumi score must be refreshed");
+    assert.equal(frontmatter.score, 8.5, "User personal score must be preserved");
+    assert.equal(frontmatter.completed_at, "2024-03-30", "User completion date must be preserved");
+    assert.deepEqual(frontmatter.user_tags, ["action", "fantasy"], "User tags must be preserved");
+  });
+
+  it("executeStartupAutoSync pushes uncollected notes and updates existing notes", async () => {
+    const filePush = new TFile();
+    filePush.path = "AnimeList/Anime/StartupPush.md";
+    filePush.basename = "StartupPush";
+    const fmPush: Record<string, unknown> = {
+      title: "Startup Push",
+      source_provider: "bangumi",
+      source_id: 701,
+      status: "ongoing",
+      progress: 3,
+    };
+
+    const fileUpdate = new TFile();
+    fileUpdate.path = "AnimeList/Anime/StartupUpdate.md";
+    fileUpdate.basename = "StartupUpdate";
+    const fmUpdate: Record<string, unknown> = {
+      title: "Startup Update",
+      source_provider: "bangumi",
+      source_id: 702,
+      status: "ongoing",
+      progress: 1,
+    };
+
+    const files = [filePush, fileUpdate];
+    const folder = new TFolder();
+    folder.path = "AnimeList";
+    folder.children = files;
+
+    const app = {
+      vault: {
+        getAbstractFileByPath: (p: string) => {
+          if (p === "AnimeList") return folder;
+          if (p === filePush.path) return filePush;
+          if (p === fileUpdate.path) return fileUpdate;
+          return null;
+        },
+        getMarkdownFiles: () => files,
+      },
+      metadataCache: {
+        getFileCache: (f: TFile) => {
+          if (f === filePush) return { frontmatter: fmPush };
+          if (f === fileUpdate) return { frontmatter: fmUpdate };
+          return null;
+        },
+      },
+      fileManager: {
+        processFrontMatter: async (f: TFile, apply: Function) => {
+          if (f === filePush) apply(fmPush);
+          if (f === fileUpdate) apply(fmUpdate);
+        },
+      },
+    };
+
+    let pushCount = 0;
+    setRequestUrlMock((options) => {
+      const url = new URL(options.url);
+      if (url.pathname === "/v0/me") return { status: 200, json: { username: "testuser" } };
+      if (options.method === "GET" && url.pathname.includes("/users/testuser/collections/702")) {
+        return {
+          status: 200,
+          json: {
+            subject_id: 702,
+            type: 3,
+            rate: 0,
+            ep_status: 4,
+            updated_at: new Date().toISOString(),
+            subject: { id: 702, eps: 12 },
+          },
+        };
+      }
+      if (options.method === "GET" && url.pathname.endsWith("/collections")) {
+        return {
+          status: 200,
+          json: {
+            total: 1,
+            limit: 50,
+            offset: 0,
+            data: [
+              {
+                subject_id: 702,
+                subject_type: 2,
+                type: 3, // ongoing
+                ep_status: 4, // updated from 1 to 4
+                rate: 0,
+                updated_at: new Date().toISOString(),
+                subject: { id: 702, eps: 12 },
+              },
+            ],
+          },
+        };
+      }
+      if (options.method === "PATCH" && url.pathname.includes("/collections/701")) {
+        pushCount += 1;
+        return { status: 200 };
+      }
+      if (url.pathname.includes("/episodes")) {
+        return { status: 200, json: { data: [] } };
+      }
+      return { status: 200 };
+    });
+
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      bangumiAccessToken: "valid_token",
+      autoSyncOnStartup: true,
+      lastSyncTimestamp: 0,
+      autoSyncCooldownMinutes: 0,
+    };
+
+    const client = new BangumiSyncClient({ minIntervalMs: 0 });
+    const service = new BangumiSyncService(app as any, () => settings, client);
+
+    const summary = await service.executeStartupAutoSync();
+    assert.ok(summary);
+    assert.equal(summary.updated, 1, "Should update 1 anime");
+    assert.equal(summary.pushed, 1, "Should push 1 anime");
+    assert.equal(pushCount, 1);
+    assert.equal(fmUpdate.progress, 4);
+  });
+});
+
+describe("DiffPreviewModal category filtering and selection", () => {
+  it("includes push items in default selection and provides accurate count text", () => {
+    const items = [
+      { subjectId: 1, title: "Item 1", action: "new" as const, remoteStatus: "watching" as const, remoteEpStatus: 1, remoteRate: null, remoteUpdatedAt: "" },
+      { subjectId: 2, title: "Item 2", action: "updated" as const, remoteStatus: "completed" as const, remoteEpStatus: 12, remoteRate: null, remoteUpdatedAt: "" },
+      { subjectId: 3, title: "Item 3", action: "push" as const, localStatus: "watching", localProgress: 5, localScore: 8 },
+      { subjectId: 4, title: "Item 4", action: "conflict" as const, remoteStatus: "completed" as const, remoteEpStatus: 12, remoteRate: 7, remoteUpdatedAt: "", conflictReason: "Score conflict" },
+      { subjectId: 5, title: "Item 5", action: "synced" as const, remoteStatus: "completed" as const, remoteEpStatus: 12, remoteRate: 8, remoteUpdatedAt: "" },
+    ];
+
+    const modal = new DiffPreviewModal(
+      {} as any,
+      { settings: DEFAULT_SETTINGS } as any,
+      items,
+      {} as any,
+    );
+
+    const selected = (modal as any).selectedIds as Set<number>;
+    assert.equal(selected.has(1), true, "New must be selected by default");
+    assert.equal(selected.has(2), true, "Updated must be selected by default");
+    assert.equal(selected.has(3), true, "Push must be selected by default");
+    assert.equal(selected.has(4), false, "Conflict must not be selected");
+    assert.equal(selected.has(5), false, "Synced must not be selected");
+
+    const countText = (modal as any).formatCountText();
+    assert.equal(countText, "Selected: 3 / 5 (Pull: 2, Push: 1)");
   });
 });

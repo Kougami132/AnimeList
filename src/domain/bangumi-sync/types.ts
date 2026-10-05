@@ -30,17 +30,17 @@ export interface BangumiUserProfile {
   sign?: string;
 }
 
-export type BangumiSyncItemAction = "new" | "updated" | "conflict" | "synced";
+export type BangumiSyncItemAction = "new" | "updated" | "conflict" | "synced" | "push";
 
 export interface BangumiSyncItem {
   subjectId: number;
   title: string;
   originalTitle?: string;
   action: BangumiSyncItemAction;
-  remoteStatus: BangumiCollectionStatus;
-  remoteEpStatus: number;
-  remoteRate: number | null;
-  remoteUpdatedAt: string;
+  remoteStatus?: BangumiCollectionStatus;
+  remoteEpStatus?: number;
+  remoteRate?: number | null;
+  remoteUpdatedAt?: string;
   localPath?: string;
   localStatus?: string;
   localProgress?: number;
@@ -53,6 +53,7 @@ export interface BangumiSyncItem {
 export interface BangumiSyncSummary {
   added: number;
   updated: number;
+  pushed: number;
   synced: number;
   conflicts: Array<{ subjectId: number; title: string; filePath?: string; reason: string }>;
   errors: string[];

@@ -80,26 +80,98 @@
 
 /* Diff preview and batch sync modal styles */
 
+.modal.al-bangumi-diff-modal-window {
+  width: min(720px, calc(100vw - 28px));
+  max-width: 720px;
+  height: min(640px, calc(100vh - 64px));
+  max-height: min(640px, calc(100vh - 64px));
+  display: flex;
+  flex-direction: column;
+}
+
+.modal.al-bangumi-diff-modal-window .modal-content.al-bangumi-diff-modal {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  padding: 0 4px 6px;
+}
+
 .al-bangumi-modal-header {
-  margin-bottom: var(--size-4-3);
+  margin-bottom: var(--size-4-2);
+  flex-shrink: 0;
+}
+
+.al-bangumi-modal-header h2 {
+  margin: 0 0 var(--size-4-1);
+  font-size: 1.25rem;
+}
+
+.al-bangumi-modal-header p {
+  margin: 0;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.al-bangumi-category-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: var(--size-4-2);
+  flex-shrink: 0;
+}
+
+.al-bangumi-filter-btn {
+  padding: 3px 10px;
+  font-size: var(--font-ui-smaller);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.al-bangumi-filter-btn:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.al-bangumi-filter-btn.is-active {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+  font-weight: var(--font-semibold);
 }
 
 .al-bangumi-search-bar {
   display: flex;
   align-items: center;
   gap: var(--size-4-2);
-  margin-bottom: var(--size-4-3);
+  margin-bottom: var(--size-4-2);
+  flex-shrink: 0;
 }
 
 .al-bangumi-search-input {
   flex: 1;
+  min-height: 32px;
+}
+
+.al-bangumi-search-bar button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: var(--font-ui-smaller);
 }
 
 .al-bangumi-diff-list {
   display: flex;
   flex-direction: column;
-  gap: var(--size-4-2);
-  max-height: 50vh;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: var(--size-4-1);
 }
@@ -108,7 +180,7 @@
   display: flex;
   align-items: center;
   gap: var(--size-4-3);
-  padding: var(--size-4-2) var(--size-4-3);
+  padding: 6px 10px;
   border-radius: var(--radius-m);
   border: 1px solid var(--background-modifier-border);
   background: var(--background-secondary);
@@ -135,6 +207,11 @@
 .al-bangumi-diff-badge.badge-updated {
   background: color-mix(in srgb, var(--text-accent, #5c8cf0) 20%, transparent);
   color: var(--text-accent, #5c8cf0);
+}
+
+.al-bangumi-diff-badge.badge-push {
+  background: color-mix(in srgb, var(--text-success, #32d74b) 20%, transparent);
+  color: var(--text-success, #32d74b);
 }
 
 .al-bangumi-diff-badge.badge-conflict {
@@ -172,8 +249,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--size-4-4);
-  padding-top: var(--size-4-3);
+  flex-shrink: 0;
+  margin-top: var(--size-4-2);
+  padding-top: var(--size-4-2);
   border-top: 1px solid var(--background-modifier-border);
 }
 
@@ -183,10 +261,11 @@
 }
 
 .al-bangumi-progress-container {
-  margin-top: var(--size-4-3);
+  margin-top: var(--size-4-2);
   display: flex;
   flex-direction: column;
   gap: var(--size-4-1);
+  flex-shrink: 0;
 }
 
 .al-bangumi-progress-container.u-hidden {

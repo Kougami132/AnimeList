@@ -162,7 +162,7 @@ try {
   const content = modal.contentEl;
   const preview = content.querySelector(".al-library-export-preview");
   const controls = content.querySelector(".al-library-export-controls");
-  const textButton = [...content.querySelectorAll(".al-library-export-format")].find((button)=>button.textContent.trim()==="Text");
+  const textButton = [...content.querySelectorAll(".al-library-export-format")].find((button)=>button.textContent.trim()==="Text" || button.textContent.trim()==="文本");
   const jsonButton = [...content.querySelectorAll(".al-library-export-format")].find((button)=>button.textContent.trim()==="JSON");
   const scopeSelects = [...content.querySelectorAll(".al-library-export-scope select")];
 
@@ -170,12 +170,12 @@ try {
   const templateSection = content.querySelector(".al-library-export-template-section");
   const template = content.querySelector(".al-library-export-template");
   const templateError = content.querySelector(".al-library-export-template-error");
-  const saveButton = [...content.querySelectorAll("button")].find((button)=>button.textContent.trim()==="儲存匯出檔");
-  const copyButton = [...content.querySelectorAll("button")].find((button)=>button.textContent.trim()==="複製");
+  const saveButton = [...content.querySelectorAll("button")].find((button)=>button.textContent.trim()==="儲存匯出檔" || button.textContent.trim()==="保存导出文件");
+  const copyButton = [...content.querySelectorAll("button")].find((button)=>button.textContent.trim()==="複製" || button.textContent.trim()==="复制");
   const saveLocation = content.querySelector(".al-library-export-save-location")?.textContent || "";
   const variableButtons = [...content.querySelectorAll(".al-library-export-template-variable")];
-  const scoreVariable = variableButtons.find((button)=>button.textContent.includes("評分"));
-  const specialLabelVariable = variableButtons.find((button)=>button.textContent.includes("masterpiece"));
+  const scoreVariable = variableButtons.find((button)=>button.textContent.includes("評分") || button.textContent.includes("评分"));
+  const specialLabelVariable = variableButtons.find((button)=>button.textContent.includes("masterpiece") || button.textContent.includes("神作"));
 
   template.focus();
   template.value = "({$作品類型}) {$作品名稱} : {$完成時間}";
@@ -190,7 +190,7 @@ try {
   scopeSelects[0].dispatchEvent(new Event("change", { bubbles:true }));
   template.value = "{$評分}";
   template.dispatchEvent(new Event("input", { bubbles:true }));
-  const missingWorkBlocksActions = !!templateError?.textContent?.includes("作品名稱")
+  const missingWorkBlocksActions = (!!templateError?.textContent?.includes("作品名稱") || !!templateError?.textContent?.includes("作品名称"))
     && saveButton?.disabled && copyButton?.disabled;
 
   template.value = "{$作品名稱} | {$評分}";
@@ -214,14 +214,14 @@ try {
 
   template.value = "{$作品名稱} {$不存在}";
   template.dispatchEvent(new Event("input", { bubbles:true }));
-  const unknownVariableBlocksActions = !!templateError?.textContent?.includes("未知變數")
+  const unknownVariableBlocksActions = (!!templateError?.textContent?.includes("未知變數") || !!templateError?.textContent?.includes("未知变量"))
     && saveButton?.disabled && copyButton?.disabled;
 
   template.value = "({$作品類型}) {$作品名稱} : {$完成時間}";
   template.dispatchEvent(new Event("input", { bubbles:true }));
   template.setSelectionRange(template.value.length, template.value.length);
   scoreVariable?.click();
-  const variableInsertKeepsFocus = document.activeElement === template && template.value.includes("{$評分}");
+  const variableInsertKeepsFocus = document.activeElement === template && (template.value.includes("{$評分}") || template.value.includes("{$评分}"));
 
   template.value = "({$作品類型}) {$作品名稱} : {$完成時間}";
   template.dispatchEvent(new Event("input", { bubbles:true }));
@@ -243,10 +243,10 @@ try {
     templateFocusPreserved: focusedAfterTemplateInput,
     noCheckboxFieldPicker: content.querySelectorAll(".al-library-export-checkbox input").length === 0,
     templateVisibleInTextMode: templateSection && !templateSection.hidden,
-    customTemplateRendersTimelineUnits: previewAfterManga.includes("(漫畫) 葬送的芙莉蓮 — 第 13 卷 : 2026-05-03") && previewAfterManga.includes("(漫畫) 葬送的芙莉蓮 — 第 14 卷 : 2026-06-12"),
+    customTemplateRendersTimelineUnits: (previewAfterManga.includes("(漫畫) 葬送的芙莉蓮 — 第 13 卷 : 2026-05-03") || previewAfterManga.includes("(漫画) 葬送的芙莉蓮 — 第 13 卷 : 2026-05-03")) && (previewAfterManga.includes("(漫畫) 葬送的芙莉蓮 — 第 14 卷 : 2026-06-12") || previewAfterManga.includes("(漫画) 葬送的芙莉蓮 — 第 14 卷 : 2026-06-12")),
     missingWorkBlocksActions,
     optionalFieldsRemainFlexible,
-    modeAwareSpecialLabelVariable: specialLabelVariable?.textContent.trim() === "{$masterpiece}",
+    modeAwareSpecialLabelVariable: specialLabelVariable?.textContent.trim() === "{$masterpiece}" || specialLabelVariable?.textContent.trim() === "{$神作}",
     masterpieceShowsActualLabels,
     unmarkedMasterpieceStaysBlank,
     oldFavoriteTokenSurvivesMasterpieceMode,

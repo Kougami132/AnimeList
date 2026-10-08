@@ -88,6 +88,14 @@ Your Markdown notes remain the source of truth. Removing the plugin does not rem
 2. Copy them into `<vault>/.obsidian/plugins/animelist-enhanced/`.
 3. Reload Obsidian and enable **AnimeList Enhanced** under **Community plugins**.
 
+## Usage
+
+1. **Open Workspace**: Click the ribbon icon or run `AnimeList: Open Library` from the command palette.
+2. **Collect Works**: Click **Collect** in the workspace header, select media type (Anime / Manga / Novel), search the title, and create notes.
+3. **Manage Progress and Ratings**: Update episode/chapter/volume progress, ratings, and status in Library cards, the Score Dashboard, or media notes.
+4. **Bangumi Sync (Optional)**: Configure your Bangumi token under **Settings → Features → Bangumi Sync** to enable two-way progress synchronization and edit writeback.
+5. **Note Media**: Right-click inside a media note to insert reusable Image Sections or Moments blocks.
+
 ## Metadata, network access, and privacy
 
 - Search and enrichment queries are sent only to enabled metadata providers.

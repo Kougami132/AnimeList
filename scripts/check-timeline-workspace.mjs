@@ -117,7 +117,7 @@ const frames=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(
  const overview=document.querySelector('.al-timeline-overview'); const chart=document.querySelector('.al-timeline-overview-chart'); const beforeTransform=scene.style.transform; const axisBeforeOverview=axisScreenY(); const r=chart.getBoundingClientRect(); click(overview,r.left+r.width*.15); await frames(); d.overviewNavigation=scene.style.transform!==beforeTransform;
  d.overviewKeepsAxisY=Math.abs(axisScreenY()-axisBeforeOverview)<=1;
  d.overviewAccessible=overview.getAttribute('role')==='slider'&&overview.hasAttribute('aria-valuenow')&&!!overview.getAttribute('aria-valuetext');
- const manga=[...document.querySelectorAll('.al-timeline-type-filter')].find(b=>b.textContent.includes('Manga')||b.textContent.includes('漫畫')); click(manga); await frames();
+ const manga=[...document.querySelectorAll('.al-timeline-type-filter')].find(b=>b.textContent.includes('Manga')||b.textContent.includes('漫畫')||b.textContent.includes('漫画')); click(manga); await frames();
  d.filterApplied=document.querySelectorAll('.al-timeline-card').length===1;
  click(document.querySelectorAll('.al-timeline-view-mode')[1]); await frames(); d.historyMode=!!document.querySelector('.al-timeline-history')&&document.querySelectorAll('.al-timeline-history-item').length===1;
  d.historyUndatedRespectsTypeFilter=!document.querySelector('.al-timeline-history .al-timeline-undated-card');

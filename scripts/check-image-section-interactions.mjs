@@ -379,7 +379,7 @@ let renderer=null;
  const resilientMissing=document.querySelector('.al-image-lightbox-missing');
  document.querySelector('.al-image-lightbox-nav.is-next').click();
  await delay(30);
- details.lightboxMissingUsesExclusiveFallback=resilientImage.hidden===true && getComputedStyle(resilientMissing).display!=='none' && resilientMissing.textContent.includes('找不到圖片');
+ details.lightboxMissingUsesExclusiveFallback=resilientImage.hidden===true && getComputedStyle(resilientMissing).display!=='none' && (resilientMissing.textContent.includes('找不到图片') || resilientMissing.textContent.includes('找不到圖片'));
  document.querySelector('.al-image-lightbox-nav.is-next').click();
  await delay(80);
  details.lightboxDecodeFailureUsesExclusiveFallback=resilientImage.hidden===true && getComputedStyle(resilientMissing).display!=='none';

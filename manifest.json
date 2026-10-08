@@ -1,9 +1,9 @@
 {
   "id": "animelist-enhanced",
   "name": "AnimeList Enhanced",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "minAppVersion": "1.5.0",
-  "description": "A local-first anime, manga, and novel library backed by Markdown with Bangumi two-way sync, metadata search, covers, ratings, and a timeline",
+  "description": "A local-first anime, manga, and novel library backed by Markdown with Bangumi two-way sync, metadata search, covers, ratings, and a timeline.",
   "author": "Kougami132",
   "authorUrl": "https://github.com/Kougami132",
   "isDesktopOnly": false

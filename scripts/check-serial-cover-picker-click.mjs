@@ -85,7 +85,7 @@ const html = `<!doctype html>
         && rows.every((row) => row instanceof HTMLButtonElement && row.type === "button")
         && brokenFallback
         && !document.querySelector(".al-search-result-use")
-        && ![...document.querySelectorAll("button")].some((button) => button.textContent === "Apply" || button.textContent === "選用")
+        && ![...document.querySelectorAll("button")].some((button) => button.textContent === "Apply" || button.textContent === "選用" || button.textContent === "选定" || button.textContent === "选用")
         && loaded === "second"
         && applied === "cover:second"
         && closed

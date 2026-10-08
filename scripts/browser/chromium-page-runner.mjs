@@ -54,13 +54,14 @@ export async function runChromiumDatasetTest({
     return;
   }
 
+  const resolvedProfile = path.resolve(profile);
   const chrome = spawn(browser, [
     "--headless=new",
     "--no-sandbox",
     "--disable-gpu",
     "--disable-dev-shm-usage",
     "--remote-debugging-port=0",
-    `--user-data-dir=${profile}`,
+    `--user-data-dir=${resolvedProfile}`,
     "about:blank",
   ], { stdio: ["ignore", "ignore", "pipe"] });
   let chromeError = "";
@@ -70,7 +71,7 @@ export async function runChromiumDatasetTest({
   let socket;
   try {
     let debugPort;
-    const activePortFile = path.join(profile, "DevToolsActivePort");
+    const activePortFile = path.join(resolvedProfile, "DevToolsActivePort");
     for (let attempt = 0; attempt < 300; attempt += 1) {
       if (chrome.exitCode !== null) break;
       try {
@@ -138,6 +139,12 @@ export async function runChromiumDatasetTest({
         deviceScaleFactor: viewport.deviceScaleFactor ?? 1,
         mobile: viewport.mobile ?? false,
       });
+      if (viewport.mobile) {
+        await send("Emulation.setTouchEmulationEnabled", {
+          enabled: true,
+          configuration: "mobile",
+        });
+      }
     }
     const frameTree = await send("Page.getFrameTree");
     await send("Page.setDocumentContent", {

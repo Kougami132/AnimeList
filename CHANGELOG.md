@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.6.1 - 2026-10-08
+
+### Fixed
+
+- Fixed TypeScript-ESLint unnecessary assertion in Bangumi sync client and added explicit typed declarations for dynamic DNS module resolution.
+- Aligned manifest description punctuation and dual-language README headings with Obsidian Community directory submission guidelines.
+
 ## 1.6.0 - 2026-09-02
 
 ### Added

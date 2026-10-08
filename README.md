@@ -6,7 +6,7 @@
 
 [English Documentation](./README_EN.md) | 简体中文文档
 
-**AnimeList Enhanced** 是一个本地优先（Local-first）的 Obsidian 动漫、漫画与轻小说媒体库管理插件。所有数据均保存在你自己的普通 Markdown 笔记中，提供集**收藏库（Library）**、**完成时间轴（Timeline）**、**评分看板（Score Dashboard）**与**插画展柜（Images）**于一体的 Material 3 风格工作台。
+**AnimeList Enhanced** 是一个本地优先（Local-first）的 Obsidian 动漫、漫画与轻小说媒体库管理插件。所有数据均保存在你自己的普通 Markdown 笔记中，提供集 **收藏库（Library）**、**完成时间轴（Timeline）**、**评分看板（Score Dashboard）** 与 **插画展柜（Images）** 于一体的 Material 3 风格工作台。
 
 本项目基于 [cwh555/AnimeList](https://github.com/cwh555/AnimeList) 进行深度二次开发与增强。你的 Markdown 笔记永远是权威的数据源，即使停用或卸载插件，所有笔记、评分、记录与图片依然完好无损。
 
@@ -64,7 +64,7 @@
 | **原生简体中文全覆盖** | 全面补齐 `zh-CN` 语言包，设置页面彻底重写为全简体中文与原生 Tab 分页交互，解决原版设置项全英文且中文搜索不友好的问题。 |
 | **番组档期（放送季度）算法校准** | 优先遵循番组官方档期与标签，彻底纠正以往单纯按公历月份计算导致的季度偏差（如 6 月下旬首播的夏番准确识别为 Q3 夏季番，12 月下旬首播的冬番准确识别为 Q1 冬季番）。 |
 | **评分看板全量筛选** | 评分看板（Score Dashboard）补齐与主收藏库一致的动画制作公司、放送季度与用户自定义标签的多维组合筛选能力。 |
-| **无缝平滑迁移** | 保持对既有笔记中 ```` ```animelist ```` 代码块的完整向后兼容；初次运行会自动检测并平滑继承原版 `animelist/data.json` 配置文件，老用户无感升级。 |
+| **无缝平滑迁移** | 保持对既有笔记中 ````animelist```` 代码块的完整向后兼容；初次运行会自动检测并平滑继承原版 `animelist/data.json` 配置文件，老用户无感升级。 |
 
 ---
 
@@ -124,7 +124,7 @@
 
 如果你此前正在使用原版 `AnimeList`（由 cwh555 维护）：
 - **配置无缝继承**：首次启用 `AnimeList Enhanced` 时，插件会自动读取并迁移原版 `.obsidian/plugins/animelist/data.json` 中的设置（包括已配置的根目录、模板、Bangumi Token 等），你无需重新设置。
-- **笔记语法完全通用**：所有笔记内既有的 ```` ```animelist ````、```` ```animelist-detail ````、```` ```animelist-images ```` 与 ```` ```animelist-moments ```` 语法保持 100% 原生支持，笔记无需做任何替换。
+- **笔记语法完全通用**：所有笔记内既有的 ````animelist````、````animelist-detail````、````animelist-images```` 与 ````animelist-moments```` 代码块语法保持 100% 原生支持，笔记无需做任何替换。
 
 ## 使用文档
 

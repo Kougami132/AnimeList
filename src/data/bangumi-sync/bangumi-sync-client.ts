@@ -376,9 +376,9 @@ export class BangumiSyncClient {
         if (response.status === 401) throw new Error("Invalid or expired Bangumi Personal Access Token (401 Unauthorized).");
         throw new Error(`Bangumi API error: HTTP ${response.status}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       if (
-        (error && typeof error === "object" && "status" in error && (error as { status: unknown }).status === 404)
+        (typeof error === "object" && error !== null && "status" in error && error.status === 404)
         || (error instanceof Error && error.message.includes("404"))
       ) {
         is404 = true;
